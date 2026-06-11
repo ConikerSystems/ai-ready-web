@@ -126,8 +126,9 @@ async function boot() {
     log('Installing AI Ready converter modules…');
     pyodide.FS.mkdirTree('/app/converters');
     for (const f of PY_FILES) {
-      const src = await (await fetch(`py/converters/${f}`)).text();
-      pyodide.FS.writeFile(`/app/converters/${f}`, src);
+      const resp = await fetch(`py/converters/${f}`);
+      if (!resp.ok) throw new Error(`module ${f} failed to download (HTTP ${resp.status})`);
+      pyodide.FS.writeFile(`/app/converters/${f}`, await resp.text());
     }
     pyodide.runPython(`import sys; sys.path.insert(0, '/app')`);
     pyodide.runPython(`from converters import pdf_converter`);  // import up front: fail fast
