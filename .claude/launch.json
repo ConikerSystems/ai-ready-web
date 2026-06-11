@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ai-ready-web-poc",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8901", "--directory", "/Users/josephconiker/Documents/claude/ai-ready-web"],
+      "port": 8901
+    }
+  ]
+}

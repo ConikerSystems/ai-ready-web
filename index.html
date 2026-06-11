@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>AI Ready Lite — Proof of Concept</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0; padding: 16px env(safe-area-inset-right) 32px env(safe-area-inset-left);
+    max-width: 720px; margin-inline: auto;
+  }
+  h1 { font-size: 1.3rem; margin: 8px 0 2px; }
+  .sub { color: #777; font-size: .85rem; margin-bottom: 16px; }
+  .card { border: 1px solid #8884; border-radius: 12px; padding: 14px; margin: 12px 0; }
+  button {
+    font-size: 1rem; padding: 12px 18px; border-radius: 10px; border: none;
+    background: #2563eb; color: #fff; width: 100%; margin-top: 10px;
+  }
+  button:disabled { background: #9994; color: #888; }
+  input[type=file] { width: 100%; font-size: .95rem; }
+  #log { font-family: ui-monospace, Menlo, monospace; font-size: .78rem; white-space: pre-wrap;
+         background: #8881; border-radius: 8px; padding: 10px; min-height: 60px; }
+  #stats td { padding: 3px 10px 3px 0; font-size: .9rem; }
+  #stats td:first-child { color: #777; }
+  #preview { font-family: ui-monospace, Menlo, monospace; font-size: .72rem; white-space: pre-wrap;
+             max-height: 300px; overflow: auto; background: #8881; border-radius: 8px; padding: 10px; }
+  .ok { color: #16a34a; } .err { color: #dc2626; } .warn { color: #d97706; }
+  footer { text-align: center; color: #888; font-size: .8rem; margin-top: 28px; }
+</style>
+</head>
+<body>
+<h1>AI Ready Lite — Proof of Concept</h1>
+<div class="sub">Converts a PDF to AI-ready Markdown <strong>entirely on this device</strong> — nothing is uploaded anywhere.</div>
+
+<div class="card">
+  <div id="boot-status">Loading Python runtime… <span id="boot-pct"></span></div>
+  <div id="device" style="font-size:.78rem;color:#888;margin-top:6px"></div>
+</div>
+
+<div class="card">
+  <input type="file" id="pdf-input" accept="application/pdf,.pdf" disabled>
+  <button id="run-btn" disabled>Convert PDF</button>
+</div>
+
+<div class="card">
+  <strong style="font-size:.9rem">Telemetry</strong>
+  <table id="stats">
+    <tr><td>Runtime load</td><td id="t-boot">—</td></tr>
+    <tr><td>File size</td><td id="t-fsize">—</td></tr>
+    <tr><td>Conversion time</td><td id="t-conv">—</td></tr>
+    <tr><td>Output size</td><td id="t-osize">—</td></tr>
+    <tr><td>WASM heap (now / peak)</td><td id="t-heap">—</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <strong style="font-size:.9rem">Log</strong>
+  <div id="log"></div>
+</div>
+
+<div class="card" id="result-card" style="display:none">
+  <strong style="font-size:.9rem">Output preview (first 3,000 chars)</strong>
+  <div id="preview"></div>
+  <button id="dl-btn">Save Markdown file</button>
+</div>
+
+<footer>© <script>document.write(new Date().getFullYear())</script> Coniker Systems™ · POC v0.1.0 · Pyodide v314.0.0</footer>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.0/full/pyodide.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const log = (msg, cls) => {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  $('log').appendChild(line);
+};
+const fmtMB = b => (b / 1048576).toFixed(1) + ' MB';
+
+let pyodide = null, peakHeap = 0, lastMd = '', lastName = 'output.md';
+
+function heapNow() {
+  try { return pyodide._module.HEAPU8.length; } catch { return 0; }
+}
+function trackHeap() {
+  const h = heapNow();
+  if (h > peakHeap) peakHeap = h;
+  if (h) $('t-heap').textContent = `${fmtMB(h)} / ${fmtMB(peakHeap)}`;
+  return h;
+}
+
+const PY_FILES = ['__init__.py','pdf_converter.py','content_detector.py','medical_index.py',
+                  'bates.py','legal_index.py','integrity.py','grid_forms.py'];
+
+async function boot() {
+  const t0 = performance.now();
+  $('device').textContent = `${navigator.userAgent.slice(0, 110)} · touch:${navigator.maxTouchPoints}`;
+  try {
+    log('Loading Pyodide core…');
+    pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.0/full/' });
+    trackHeap();
+    log('Loading PyMuPDF (≈17 MB, cached after first load)…');
+    $('boot-status').textContent = 'Loading PyMuPDF…';
+    await pyodide.loadPackage('pymupdf');
+    trackHeap();
+    log('Installing AI Ready converter modules…');
+    pyodide.FS.mkdirTree('/app/converters');
+    for (const f of PY_FILES) {
+      const src = await (await fetch(`py/converters/${f}`)).text();
+      pyodide.FS.writeFile(`/app/converters/${f}`, src);
+    }
+    pyodide.runPython(`import sys; sys.path.insert(0, '/app')`);
+    pyodide.runPython(`from converters import pdf_converter`);  // import up front: fail fast
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    $('t-boot').textContent = secs + ' s';
+    $('boot-status').innerHTML = `<span class="ok">✅ Ready — Python + PyMuPDF + AI Ready pipeline loaded (${secs} s)</span>`;
+    $('pdf-input').disabled = false;
+    $('run-btn').disabled = false;
+    log(`Boot complete in ${secs} s.`, 'ok');
+    trackHeap();
+  } catch (e) {
+    $('boot-status').innerHTML = `<span class="err">❌ Failed to load: ${e}</span>`;
+    log(`BOOT FAILED: ${e}`, 'err');
+  }
+}
+
+async function convert() {
+  const file = $('pdf-input').files[0];
+  if (!file) { log('Pick a PDF first.', 'warn'); return; }
+  $('run-btn').disabled = true;
+  $('result-card').style.display = 'none';
+  $('t-fsize').textContent = fmtMB(file.size);
+  try {
+    log(`Reading "${file.name}" (${fmtMB(file.size)})…`);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    pyodide.FS.writeFile('/tmp/input.pdf', bytes);
+    trackHeap();
+
+    // page-progress callback so big files don't look frozen
+    let lastPct = -1;
+    pyodide.globals.set('js_progress', (done, total) => {
+      const pct = Math.floor(done / total * 100);
+      if (pct !== lastPct) { lastPct = pct; $('boot-status').textContent = `Converting… page ${done}/${total} (${pct}%)`; trackHeap(); }
+    });
+    pyodide.globals.set('js_stage', (label) => { $('boot-status').textContent = `Converting… ${label}`; trackHeap(); });
+    pyodide.globals.set('input_filename', file.name);
+
+    log('Converting (real AI Ready pdf_converter)…');
+    const t0 = performance.now();
+    lastMd = await pyodide.runPythonAsync(`
+import re as _re
+from converters import pdf_converter
+from datetime import date
+_slug = _re.sub(r'[^A-Za-z0-9]+', '_', input_filename.rsplit('.', 1)[0]).strip('_') or 'document'
+md, meta = pdf_converter.convert(
+    '/tmp/input.pdf', input_filename, date.today().isoformat(), _slug,
+    progress_cb=js_progress, stage_cb=js_stage)
+md
+`);
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    trackHeap();
+    $('t-conv').textContent = secs + ' s';
+    $('t-osize').textContent = fmtMB(lastMd.length);
+    lastName = file.name.replace(/\.pdf$/i, '') + '.md';
+    $('preview').textContent = lastMd.slice(0, 3000);
+    $('result-card').style.display = '';
+    $('boot-status').innerHTML = `<span class="ok">✅ Converted in ${secs} s — output ${fmtMB(lastMd.length)}</span>`;
+    log(`SUCCESS: ${secs} s, output ${fmtMB(lastMd.length)}, peak heap ${fmtMB(peakHeap)}.`, 'ok');
+    // free Python-side memory
+    pyodide.runPython(`import gc; gc.collect()`);
+    try { pyodide.FS.unlink('/tmp/input.pdf'); } catch {}
+    trackHeap();
+  } catch (e) {
+    $('boot-status').innerHTML = `<span class="err">❌ Conversion failed</span>`;
+    log(`CONVERSION FAILED: ${e}`, 'err');
+  } finally {
+    $('run-btn').disabled = false;
+  }
+}
+
+function download() {
+  // anchor + download attribute: on iOS standalone this routes via the share sheet
+  const blob = new Blob([lastMd], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = lastName;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+$('run-btn').addEventListener('click', convert);
+$('dl-btn').addEventListener('click', download);
+boot();
+</script>
+</body>
+</html>

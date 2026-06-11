@@ -1,0 +1,8 @@
+# NEVER commit documents — user data stays local, the public repo holds CODE ONLY
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+*.md.out
+outputs/
+.DS_Store
