@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>About — AI Ready Lite</title>
+<script src="static/js/version.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0; padding: 0 0 32px;
+  }
+  .about-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; padding-top: calc(env(safe-area-inset-top) + 12px);
+    border-bottom: 1px solid #8883; position: sticky; top: 0;
+    background: Canvas;
+  }
+  .about-bar strong { font-size: 1.05rem; }
+  .chip {
+    display: inline-block; border: 1px solid #8885; border-radius: 999px;
+    padding: 7px 14px; font-size: .88rem; text-decoration: none; color: inherit;
+    background: none; cursor: pointer; font-family: inherit; margin-left: 6px;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 8px 16px; }
+  .hero { text-align: center; padding: 26px 8px 8px; }
+  .hero .logo { font-size: 44px; }
+  .hero h1 { margin: 8px 0 4px; font-size: 1.5rem; }
+  .tagline { color: #777; margin: 0 0 4px; }
+  section { margin: 26px 0; }
+  h2 { font-size: 1.08rem; border-bottom: 1px solid #8883; padding-bottom: 6px; }
+  p, li { line-height: 1.55; font-size: .95rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+  .tile { border: 1px solid #8884; border-radius: 12px; padding: 12px; }
+  .tile .t { font-weight: 650; font-size: .92rem; margin-bottom: 4px; }
+  .tile .d { font-size: .85rem; color: #888; line-height: 1.45; }
+  ol.get-steps li { margin: 8px 0; }
+  .cta { text-align: center; margin: 18px 0; }
+  .cta a {
+    display: inline-block; background: #2563eb; color: #fff; text-decoration: none;
+    border-radius: 10px; padding: 12px 26px; font-size: 1rem;
+  }
+  .brand { text-align: center; color: #888; font-size: .82rem; margin-top: 36px;
+           border-top: 1px solid #8883; padding-top: 16px; }
+  .brand a { color: inherit; }
+</style>
+</head>
+<body>
+  <header class="about-bar">
+    <strong>📄 AI&nbsp;Ready&nbsp;Lite</strong>
+    <div>
+      <a class="chip" href="index.html">← Back</a>
+      <button class="chip" id="share-btn">📤 Share</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div class="logo">📄→🤖</div>
+      <h1>AI Ready Lite</h1>
+      <p class="tagline">Make your documents AI-ready — right on your iPhone or iPad.</p>
+    </div>
+
+    <section>
+      <h2>What It Does</h2>
+      <p>AI Ready Lite converts your documents (PDFs and more) into clean, structured
+         <b>Markdown that AI assistants like Claude and ChatGPT can actually read</b> —
+         with page anchors you can cite, document indexes, and verbatim text. Convert a
+         file, save the result, and drop it into your AI chat or knowledge library.</p>
+    </section>
+
+    <section>
+      <h2>Private by Design</h2>
+      <p>Everything happens <b>on your device, in your browser</b>. Your documents are
+         <b>never uploaded to any server</b> — there is no server. No account, no
+         sign-in, no ads. That makes it safe for sensitive material like legal,
+         financial, and medical documents.</p>
+    </section>
+
+    <section>
+      <h2>What's Inside</h2>
+      <div class="grid">
+        <div class="tile"><div class="t">📑 Page-anchored Markdown</div>
+          <div class="d">Every page gets an anchor so an AI can cite exactly where something came from.</div></div>
+        <div class="tile"><div class="t">🔍 Document indexes</div>
+          <div class="d">Parties, dates, amounts, and references mapped to their pages automatically.</div></div>
+        <div class="tile"><div class="t">🔒 On-device processing</div>
+          <div class="d">Files never leave your phone or tablet. Airplane-mode private.</div></div>
+        <div class="tile"><div class="t">⚡ Real conversion engine</div>
+          <div class="d">The same pipeline as the AI Ready desktop app, running in your browser.</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Lite vs. Desktop</h2>
+      <p>The Lite version is built for phone-sized jobs: digital (text-based) documents,
+         a few files at a time. Scanned-document OCR, audio transcription, folder
+         processing, and very large productions are features of the
+         <b>AI Ready desktop app</b> for Mac and Windows.</p>
+    </section>
+
+    <section id="get-it">
+      <h2>Get It on Your iPhone or iPad</h2>
+      <p>It's a free web app — no App Store needed:</p>
+      <ol class="get-steps">
+        <li>Open this site in <b>Safari</b> (you're likely here already).</li>
+        <li>Tap the <b>Share</b> button — the square with an arrow.</li>
+        <li>Choose <b>“Add to Home Screen,”</b> then tap <b>Add</b>.</li>
+        <li>Open it from your home screen like any app.</li>
+      </ol>
+      <div class="cta"><a href="index.html">▶ Try It Now</a></div>
+      <p>Want to send it to someone? Tap <b>📤 Share</b> at the top of this page to text
+         or email them this page — it explains everything and how to get it.</p>
+    </section>
+
+    <div class="brand">
+      © <span id="cr-years">2026</span>
+      <a href="https://conikersystems.com" target="_blank" rel="noopener">Coniker Systems™</a>
+      · <a href="https://conikersystems.com" target="_blank" rel="noopener">conikersystems.com</a>
+      · v<span id="app-ver"></span>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById("app-ver").textContent = window.APP_VERSION || "0.1";
+    document.getElementById("cr-years").textContent = new Date().getFullYear();
+
+    // Share THIS About page — the link is passed separately in the share sheet's
+    // `url` field so it isn't duplicated. (iOS appends `url` after `text`.)
+    var ABOUT_URL = location.origin + location.pathname;
+    var SHARE_TEXT = "AI Ready Lite — turn your documents into AI-ready files, "
+      + "right on your phone. Private: nothing gets uploaded. Here's all about it, free:";
+
+    document.getElementById("share-btn").onclick = async function () {
+      if (navigator.share) {
+        try { await navigator.share({ title: "About AI Ready Lite", text: SHARE_TEXT, url: ABOUT_URL }); return; } catch (e) { return; }
+      }
+      try { await navigator.clipboard.writeText(SHARE_TEXT + "\n" + ABOUT_URL); alert("Link copied — paste it into a text or email."); }
+      catch (e) { window.prompt("Copy this link:", ABOUT_URL); }
+    };
+  </script>
+</body>
+</html>

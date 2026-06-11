@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>AI Ready Lite — Proof of Concept</title>
+<script src="static/js/version.js"></script>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -33,7 +34,10 @@
 </style>
 </head>
 <body>
-<h1>AI Ready Lite — Proof of Concept</h1>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+  <h1>AI Ready Lite — Proof of Concept</h1>
+  <a href="about.html" style="border:1px solid #8885;border-radius:999px;padding:6px 13px;font-size:.85rem;text-decoration:none;color:inherit;white-space:nowrap">ℹ️ About</a>
+</div>
 <div class="sub">Converts a PDF to AI-ready Markdown <strong>entirely on this device</strong> — nothing is uploaded anywhere.</div>
 
 <div class="card">
@@ -68,8 +72,20 @@
   <button id="dl-btn">Save Markdown file</button>
 </div>
 
-<footer>© <script>document.write(new Date().getFullYear())</script> Coniker Systems™ · POC v0.1.0 · Pyodide v314.0.0</footer>
+<footer>© <span id="cr-years"></span> Coniker Systems™ · v<span id="app-ver"></span> · Pyodide v314.0.0 · <a href="about.html" style="color:inherit">About</a></footer>
+<script>
+  document.getElementById('cr-years').textContent = new Date().getFullYear();
+  document.getElementById('app-ver').textContent = window.APP_VERSION || '0.1';
+</script>
 
+<script>
+  window.APP_INFO = {
+    name: "AI Ready Lite",
+    url: "https://conikersystems.github.io/ai-ready-web/",
+    email: "info@conikersystems.com",
+  };
+</script>
+<script src="static/js/feedback.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v314.0.0/full/pyodide.js"></script>
 <script>
 const $ = id => document.getElementById(id);
