@@ -134,7 +134,7 @@
            accept=".pdf,.docx,.pptx,.txt,.md,application/pdf">
     <div id="file-list"></div>
     <button class="btn quiet" id="choose-btn" disabled>＋ Choose Files</button>
-    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 20 files, 25 MB each.</div>
+    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 50 files · 25 MB &amp; 1,500 pages per file.</div>
   </div>
 
   <div class="card" id="format-card">
@@ -230,7 +230,11 @@ function dbgStats() {
 }
 
 /* ── limits (agreed mobile scope) ── */
-const MAX_FILES = 20, MAX_FILE_MB = 25, MAX_BATCH_MB = 100;
+// Limits (measured 2026-06-12): file COUNT is not the constraint — 50 small
+// files convert in seconds with flat memory. MEMORY is: per-file size and
+// total batch size drive the working set against iOS Safari's wasm ceiling
+// (~300 MB floor on older devices). Hence generous count, conservative sizes.
+const MAX_FILES = 50, MAX_FILE_MB = 25, MAX_BATCH_MB = 100;
 const OK_EXT = [".pdf", ".docx", ".pptx", ".txt", ".md"];
 
 /* ── state ── */
@@ -570,8 +574,9 @@ json.dumps(_r)
     dbg("BATCH FAILED: " + e);
     $("progress-card").classList.add("hidden");
     $("setup-ui").classList.remove("hidden");
-    status("Something went wrong with that conversion. Please try again — and if it keeps happening, " +
-           "send feedback with the 💬 button.", { spin: false, error: true });
+    status("Something went wrong with that conversion — the file may be too large or too dense " +
+           "for this device's memory. Try fewer or smaller files, or use the AI Ready desktop app. " +
+           "If it keeps happening, send feedback with the 💬 button.", { spin: false, error: true });
   }
 };
 
@@ -595,11 +600,17 @@ function showDone() {
     const div = document.createElement("div");
     div.className = "hint";
     div.style.cssText = "border:1px solid #d9770655;background:#d977060f;border-radius:10px;padding:10px;margin:8px 0;color:inherit";
-    const what = n.pages_unreadable
-      ? `${n.pages_unreadable} of ${n.pages_total} pages are scanned images`
-      : `${n.scanned_pct}% of its pages are scanned images`;
-    div.textContent = `⚠️ ${n.filename}: ${what} — pictures of text that need OCR (text recognition) to read. `
-      + `The mobile version can't do that part; run this file through the AI Ready desktop app to capture those pages.`;
+    if (n.skipped) {
+      div.textContent = `⚠️ ${n.filename} was not converted: it has ${n.pages_total.toLocaleString()} pages, `
+        + `and the mobile version handles up to ${n.max_pages.toLocaleString()} pages per file — beyond that a phone `
+        + `runs out of memory. Run this file through the AI Ready desktop app instead.`;
+    } else {
+      const what = n.pages_unreadable
+        ? `${n.pages_unreadable} of ${n.pages_total} pages are scanned images`
+        : `${n.scanned_pct}% of its pages are scanned images`;
+      div.textContent = `⚠️ ${n.filename}: ${what} — pictures of text that need OCR (text recognition) to read. `
+        + `The mobile version can't do that part; run this file through the AI Ready desktop app to capture those pages.`;
+    }
     nt.appendChild(div);
   });
 

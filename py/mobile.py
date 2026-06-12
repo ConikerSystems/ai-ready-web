@@ -24,6 +24,13 @@ from masking.masker import mask_text, sweep_names
 
 SUPPORTED = {".pdf", ".docx", ".pptx", ".txt", ".md"}
 
+# Memory guard (measured 2026-06-12): conversion working set scales with page
+# count × text density (~125 KB peak per dense page) — a 22 MB / 12,000-page
+# text-dense PDF peaked at 1.49 GB, far past any iPhone's wasm ceiling, while
+# raw megabytes alone are a weak proxy. Files over this page count are skipped
+# with a clear notice instead of crashing the device mid-run.
+MAX_PAGES_PER_FILE = 1500
+
 
 def _converter_for(ext: str):
     # docx/pptx import lazily: python-docx / python-pptx finish installing in
@@ -72,6 +79,21 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
         if ext not in SUPPORTED:
             continue
         path = os.path.join(input_dir, filename)
+
+        # Page-count pre-check (cheap: lazy open, no extraction) — refuse
+        # politely rather than run the device out of memory mid-conversion.
+        if ext == ".pdf":
+            try:
+                _d = pdf_converter.fitz.open(path)
+                _pages = _d.page_count
+                _d.close()
+            except Exception:
+                _pages = 0
+            if _pages > MAX_PAGES_PER_FILE:
+                notices.append({"filename": filename, "skipped": True,
+                                "pages_total": _pages,
+                                "max_pages": MAX_PAGES_PER_FILE})
+                continue
 
         # DOCX export (desktop parity): PDFs become exact Word text — one page
         # per PDF page, page numbers, masking + replacements applied per page.
