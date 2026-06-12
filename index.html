@@ -143,6 +143,15 @@
     </div>
   </div>
 
+  <div class="card">
+    <h2>Output Size — pick one</h2>
+    <div class="seg" id="size-seg">
+      <button data-size="524288">Small · for a chat</button>
+      <button data-size="3145728">Large · for a library</button>
+    </div>
+    <div class="hint" id="size-hint" style="margin-top:8px">Small files fit a single AI chat; Large files suit a knowledge library. Required — pick one each run.</div>
+  </div>
+
   <button class="btn" id="run-btn" disabled>Make AI-Ready</button>
 </div>
 
@@ -242,9 +251,11 @@ async function boot() {
         pyodide.FS.writeFile(`/app/${dir}/${f}`, await resp.text());
       }
     }
-    const respM = await fetch("py/mobile.py");
-    if (!respM.ok) throw new Error("mobile.py failed to download");
-    pyodide.FS.writeFile("/app/mobile.py", await respM.text());
+    for (const mod of ["mobile.py", "assembly.py"]) {
+      const respM = await fetch("py/" + mod);
+      if (!respM.ok) throw new Error(`${mod} failed to download (HTTP ${respM.status})`);
+      pyodide.FS.writeFile("/app/" + mod, await respM.text());
+    }
     pyodide.runPython("import sys; sys.path.insert(0, '/app')");
     pyodide.runPython("import mobile");
     // Word/PowerPoint support loads quietly in the background; PDFs work now.
@@ -308,7 +319,19 @@ function renderFiles() {
   });
   refreshRunBtn();
 }
-function refreshRunBtn() { $("run-btn").disabled = !(pyodide && files.length); }
+function refreshRunBtn() { $("run-btn").disabled = !(pyodide && files.length && partTarget); }
+
+/* ── output size (required, no default — desktop parity) ── */
+let partTarget = 0;
+document.querySelectorAll("#size-seg button").forEach(b =>
+  b.onclick = () => {
+    partTarget = parseInt(b.dataset.size, 10);
+    document.querySelectorAll("#size-seg button").forEach(x => x.classList.toggle("on", x === b));
+    $("size-hint").textContent = partTarget === 524288
+      ? "Small (0.5 MB parts) — each output fits comfortably in a single AI chat."
+      : "Large (3 MB parts) — fewer, bigger files for a knowledge library.";
+    refreshRunBtn();
+  });
 
 /* ── masking controls ── */
 const MASK_HINTS = {
@@ -359,6 +382,17 @@ $("vars-add").onclick = addVarRow;
 renderVars();
 
 /* ── conversion ── */
+function nowStamps() {
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return {
+    ts: `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`,
+    gen: `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`,
+    day: `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`,
+  };
+}
+
+let runStamp = "";
+
 $("run-btn").onclick = async () => {
   $("setup-ui").classList.add("hidden");
   $("done-card").classList.add("hidden");
@@ -366,69 +400,68 @@ $("run-btn").onclick = async () => {
   outputs = [];
   const t0 = performance.now();
   const vars = varsOn ? loadVars().filter(v => (v.current || "").trim()) : [];
-  const failures = [];
   try {
-    pyodide.runPython("import mobile, json; _outputs = {}; _names = set()");
+    if (files.some(f => /\.(docx|pptx)$/i.test(f.name))) {
+      $("progress-title").textContent = "Preparing";
+      $("progress-detail").textContent = "Loading Word & PowerPoint support…";
+      await officeReady;
+    }
+    // Stage every source file in the in-browser filesystem, then run the
+    // SAME batch pipeline as the desktop app (Gold Master + combined output).
+    try { pyodide.FS.mkdirTree("/inputs"); } catch {}
+    for (const old of pyodide.FS.readdir("/inputs")) {
+      if (old !== "." && old !== "..") { try { pyodide.FS.unlink("/inputs/" + old); } catch {} }
+    }
+    for (const f of files) {
+      pyodide.FS.writeFile("/inputs/" + f.name, new Uint8Array(await f.arrayBuffer()));
+    }
+
+    let fileCount = files.length, currentFile = "", currentIdx = 0;
+    pyodide.globals.set("js_file_start", (i, n, name) => {
+      currentIdx = i; currentFile = name;
+      $("progress-title").textContent = n > 1 ? `Converting ${i + 1} of ${n}` : "Converting";
+      $("progress-detail").textContent = name;
+      $("progress-bar").style.width = (i / n * 100) + "%";
+      dbgStats();
+    });
+    let lastPct = -1;
+    pyodide.globals.set("js_progress", (done, total) => {
+      const pct = Math.floor(done / total * 100);
+      if (pct !== lastPct) {
+        lastPct = pct;
+        $("progress-detail").textContent = `${currentFile} — page ${done} of ${total}`;
+        $("progress-bar").style.width = ((currentIdx + done / total) / fileCount * 100) + "%";
+        dbgStats();
+      }
+    });
+
+    const stamps = nowStamps();
+    runStamp = stamps.ts;
     pyodide.globals.set("mask_mode", maskMode);
     pyodide.globals.set("variables_json", JSON.stringify(vars));
+    pyodide.globals.set("filenames_json", JSON.stringify(files.map(f => f.name)));
+    pyodide.globals.set("part_target", partTarget);
+    pyodide.globals.set("run_ts", stamps.ts);
+    pyodide.globals.set("run_gen", stamps.gen);
+    pyodide.globals.set("run_day", stamps.day);
+    pyodide.globals.set("app_version", (window.APP_VERSION || "1.0") + "-mobile");
 
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const needsOffice = /\.(docx|pptx)$/i.test(f.name);
-      if (needsOffice) { $("progress-detail").textContent = "Preparing…"; await officeReady; }
-      $("progress-title").textContent = files.length > 1
-        ? `Converting ${i + 1} of ${files.length}` : "Converting";
-      $("progress-detail").textContent = f.name;
-      $("progress-bar").style.width = (i / files.length * 100) + "%";
-
-      pyodide.FS.writeFile("/tmp/input", new Uint8Array(await f.arrayBuffer()));
-      pyodide.globals.set("input_filename", f.name);
-      let lastPct = -1;
-      pyodide.globals.set("js_progress", (done, total) => {
-        const pct = Math.floor(done / total * 100);
-        if (pct !== lastPct) {
-          lastPct = pct;
-          $("progress-detail").textContent = `${f.name} — page ${done} of ${total}`;
-          $("progress-bar").style.width = ((i + done / total) / files.length * 100) + "%";
-          dbgStats();
-        }
-      });
-      pyodide.globals.set("js_stage", (label) => { $("progress-detail").textContent = `${f.name} — finishing up…`; });
-      try {
-        await pyodide.runPythonAsync(`
-import json
-from datetime import date
-_name, _md = mobile.process_file('/tmp/input', input_filename, date.today().isoformat(),
-                                 mask_mode, json.loads(variables_json), _names,
-                                 progress_cb=js_progress, stage_cb=js_stage)
-_base = _name
-_k = 2
-while _name in _outputs:
-    _name = _base[:-3] + f'_{_k}.md'; _k += 1
-_outputs[_name] = _md
+    const outJson = await pyodide.runPythonAsync(`
+import json, mobile
+_outs = mobile.run_batch('/inputs', json.loads(filenames_json), mask_mode,
+                         json.loads(variables_json), int(part_target),
+                         run_ts, run_gen, run_day, app_version,
+                         file_start_cb=js_file_start, progress_cb=js_progress)
+json.dumps(_outs)
 `);
-        dbg(`converted ${f.name}`); dbgStats();
-      } catch (e) {
-        dbg(`FAILED ${f.name}: ${e}`);
-        failures.push(f.name);
-      }
-      try { pyodide.FS.unlink("/tmp/input"); } catch {}
-    }
-
-    $("progress-title").textContent = "Finishing up";
-    $("progress-detail").textContent = "";
-    $("progress-bar").style.width = "100%";
-    const names = JSON.parse(await pyodide.runPythonAsync(`
-_outputs = mobile.finish_batch(_outputs, mask_mode, _names)
-json.dumps(list(_outputs.keys()))
-`));
-    for (const n of names) {
-      pyodide.globals.set("_k_name", n);
-      outputs.push({ name: n, md: pyodide.runPython("_outputs[_k_name]") });
+    outputs = JSON.parse(outJson);
+    for (const old of pyodide.FS.readdir("/inputs")) {
+      if (old !== "." && old !== "..") { try { pyodide.FS.unlink("/inputs/" + old); } catch {} }
     }
     pyodide.runPython("import gc; gc.collect()");
+    $("progress-bar").style.width = "100%";
     dbg(`batch done in ${((performance.now() - t0) / 1000).toFixed(1)}s`); dbgStats();
-    showDone(failures);
+    showDone();
   } catch (e) {
     dbg("BATCH FAILED: " + e);
     $("progress-card").classList.add("hidden");
@@ -439,29 +472,31 @@ json.dumps(list(_outputs.keys()))
 };
 
 /* ── results ── */
-function showDone(failures) {
+const KIND_LABEL = { combined: "Combined", "large-part": "Part", file: "" };
+function showDone() {
   $("progress-card").classList.add("hidden");
   $("done-card").classList.remove("hidden");
-  const n = outputs.length;
-  $("done-title").textContent = n === 1 ? "Your document is AI-ready" : `${n} documents are AI-ready`;
+  const nSources = files.length;
+  $("done-title").textContent = nSources === 1
+    ? "Your document is AI-ready" : `${nSources} documents are AI-ready`;
+  $("done-sub").textContent = nSources > 1
+    ? "The Combined file holds everything in one place — or save the individual files below it."
+    : "Save your AI-ready file, then add it to your AI chat or library.";
   const list = $("done-list"); list.innerHTML = "";
   outputs.forEach((o) => {
     const row = document.createElement("div");
     row.className = "file-row";
-    row.innerHTML = `<span class="file-name"></span>
+    const tag = KIND_LABEL[o.kind] ? `<span class="file-size">${KIND_LABEL[o.kind]}</span>` : "";
+    row.innerHTML = `<span class="file-name"></span>${tag}
                      <button class="btn quiet small">Save</button>`;
-    row.querySelector(".file-name").textContent = o.name;
-    row.querySelector("button").onclick = () => saveBlob(new Blob([o.md], { type: "text/markdown" }), o.name);
+    row.querySelector(".file-name").textContent = (o.kind === "combined" ? "📦 " : "") + o.name;
+    row.querySelector("button").onclick = () => {
+      const bytes = pyodide.FS.readFile("/outputs/" + o.name);
+      saveBlob(new Blob([bytes], { type: "text/markdown" }), o.name);
+    };
     list.appendChild(row);
   });
-  failures.forEach((name) => {
-    const row = document.createElement("div");
-    row.className = "file-row";
-    row.innerHTML = `<span class="file-name" style="color:#dc2626"></span><span class="file-size">couldn't convert</span>`;
-    row.querySelector(".file-name").textContent = "⚠️ " + name;
-    list.appendChild(row);
-  });
-  $("save-all-btn").classList.toggle("hidden", n < 2);
+  $("save-all-btn").classList.toggle("hidden", outputs.length < 2);
 }
 
 function saveBlob(blob, name) {
@@ -473,9 +508,11 @@ function saveBlob(blob, name) {
 }
 
 $("save-all-btn").onclick = async () => {
-  await pyodide.runPythonAsync(`mobile.build_zip(_outputs, '/tmp/AI_Ready_Files.zip')`);
-  const bytes = pyodide.FS.readFile("/tmp/AI_Ready_Files.zip");
-  saveBlob(new Blob([bytes], { type: "application/zip" }), "AI_Ready_Files.zip");
+  const zipName = `AI_Ready_${runStamp || "files"}.zip`;
+  pyodide.globals.set("zip_name", zipName);
+  const zipPath = await pyodide.runPythonAsync(`mobile.build_zip(zip_name)`);
+  const bytes = pyodide.FS.readFile(zipPath);
+  saveBlob(new Blob([bytes], { type: "application/zip" }), zipName);
 };
 
 $("again-btn").onclick = () => location.reload();  // fresh start also frees memory
