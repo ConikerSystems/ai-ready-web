@@ -112,13 +112,29 @@
 </div>
 
 <div id="setup-ui">
-  <div class="card">
-    <h2>Documents</h2>
+  <div class="card" id="files-card">
+    <h2>Files</h2>
     <input type="file" id="file-input" class="hidden" multiple
            accept=".pdf,.docx,.pptx,.txt,.md,application/pdf">
     <div id="file-list"></div>
-    <button class="btn quiet" id="choose-btn" disabled>＋ Choose Documents</button>
-    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 20 documents, 25 MB each.</div>
+    <button class="btn quiet" id="choose-btn" disabled>＋ Choose Files</button>
+    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 20 files, 25 MB each.</div>
+  </div>
+
+  <div class="card" id="ts-card-toggle">
+    <div class="switch-row" style="margin-top:0">
+      <div>
+        <div style="font-size:.92rem;font-weight:600">Call Transcripts</div>
+        <div class="hint">Paste call transcripts instead of choosing files.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="ts-toggle"><span></span></label>
+    </div>
+    <div id="ts-editor" class="hidden">
+      <div id="ts-blocks"></div>
+      <button class="btn quiet small" id="ts-add">＋ Add another call</button>
+      <div class="hint" style="margin-top:8px">Transcripts are kept word-for-word — only Social Security and payment-card
+        numbers are hidden automatically, plus anything in your Replacements.</div>
+    </div>
   </div>
 
   <div class="card">
@@ -166,7 +182,7 @@
   <div class="hint" id="done-sub" style="margin-bottom:6px">Save your AI-ready files, then add them to your AI chat or library.</div>
   <div id="done-list"></div>
   <button class="btn" id="save-all-btn" style="margin-top:14px">Save All</button>
-  <button class="btn quiet" id="again-btn" style="margin-top:8px">Convert More Documents</button>
+  <button class="btn quiet" id="again-btn" style="margin-top:8px">Convert More Files</button>
 </div>
 
 <div class="card hidden" id="debug-card">
@@ -231,7 +247,8 @@ function statusHide() { $("status-card").classList.add("hidden"); }
 /* ── boot ── */
 const PY_DIRS = { "converters": ["__init__.py","pdf_converter.py","content_detector.py","medical_index.py",
                                  "bates.py","legal_index.py","integrity.py","grid_forms.py",
-                                 "docx_converter.py","pptx_converter.py","text_converter.py"],
+                                 "docx_converter.py","pptx_converter.py","text_converter.py",
+                                 "transcript_converter.py"],
                   "masking": ["__init__.py","masker.py"] };
 
 async function boot() {
@@ -305,6 +322,43 @@ $("file-input").addEventListener("change", () => {
   renderFiles();
 });
 
+/* ── Call Transcripts mode (paste text; desktop-parity processing) ── */
+let tsOn = localStorage.getItem("aiready.transcripts") === "1";
+let tsBlocks = [""];
+function renderTsMode() {
+  $("ts-toggle").checked = tsOn;
+  $("ts-editor").classList.toggle("hidden", !tsOn);
+  $("files-card").classList.toggle("hidden", tsOn);
+  // transcripts keep verbatim text (hard-PII auto-masked) — the mask selector
+  // and output-size pick don't apply; Replacements still do.
+  document.querySelectorAll("#size-seg")[0].closest(".card").classList.toggle("hidden", tsOn);
+  $("mask-seg").classList.toggle("hidden", tsOn);
+  $("mask-hint").textContent = tsOn
+    ? "Transcripts stay word-for-word — only SSNs and payment-card numbers are hidden automatically."
+    : MASK_HINTS[maskMode];
+  $("run-btn").textContent = tsOn ? "Make Transcript AI-Ready" : "Make AI-Ready";
+  if (tsOn) renderTsBlocks();
+  refreshRunBtn();
+}
+function renderTsBlocks() {
+  const wrap = $("ts-blocks"); wrap.innerHTML = "";
+  tsBlocks.forEach((v, i) => {
+    const ta = document.createElement("textarea");
+    ta.className = "var-row"; ta.rows = 7;
+    ta.style.cssText = "width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:.88rem;background:none;color:inherit;margin:8px 0;font-family:inherit";
+    ta.placeholder = i === 0 ? "Paste a call transcript here…" : "Paste another call from the same matter…";
+    ta.value = v;
+    ta.oninput = () => { tsBlocks[i] = ta.value; refreshRunBtn(); };
+    wrap.appendChild(ta);
+  });
+}
+$("ts-toggle").onchange = () => {
+  tsOn = $("ts-toggle").checked;
+  localStorage.setItem("aiready.transcripts", tsOn ? "1" : "0");
+  renderTsMode();
+};
+$("ts-add").onclick = () => { tsBlocks.push(""); renderTsBlocks(); };
+
 function renderFiles() {
   const list = $("file-list");
   list.innerHTML = "";
@@ -319,7 +373,11 @@ function renderFiles() {
   });
   refreshRunBtn();
 }
-function refreshRunBtn() { $("run-btn").disabled = !(pyodide && files.length && partTarget); }
+function refreshRunBtn() {
+  $("run-btn").disabled = tsOn
+    ? !(pyodide && tsBlocks.some(b => b.trim()))
+    : !(pyodide && files.length && partTarget);
+}
 
 /* ── output size (required, no default — desktop parity) ── */
 let partTarget = 0;
@@ -334,10 +392,11 @@ document.querySelectorAll("#size-seg button").forEach(b =>
   });
 
 /* ── masking controls ── */
+// Shared wording with the AI Ready desktop app — keep the two apps saying the same thing.
 const MASK_HINTS = {
-  full: "Personal details (SSNs, account numbers, names, addresses…) are replaced with safe placeholders.",
-  soft: "Personal details are partially hidden — enough to recognize, not enough to expose.",
-  none: "The text is kept exactly as-is. Choose this only if the documents aren't sensitive.",
+  full: "Personal details are replaced with safe placeholders — SSN → XXX-XX-XXXX · Bank → XXXX-XXXX-XXXX · Name → [NAME MASKED]",
+  soft: "Personal details are partially hidden — enough to recognize, not enough to expose. SSN → XXX-XX-1234 · Name → First L.",
+  none: "No masking — everything is kept exactly as in the source. Choose this only if the content isn't sensitive.",
 };
 let maskMode = localStorage.getItem("aiready.maskmode") || "full";
 function renderMask() {
@@ -380,6 +439,7 @@ function renderVars() {
 function addVarRow() { const all = loadVars(); all.push({ current: "", masked: "" }); storeVars(all); renderVars(); }
 $("vars-add").onclick = addVarRow;
 renderVars();
+renderTsMode();
 
 /* ── conversion ── */
 function nowStamps() {
@@ -400,6 +460,35 @@ $("run-btn").onclick = async () => {
   outputs = [];
   const t0 = performance.now();
   const vars = varsOn ? loadVars().filter(v => (v.current || "").trim()) : [];
+
+  if (tsOn) {   // Call Transcripts mode — single AI-ready transcript file
+    try {
+      $("progress-title").textContent = "Converting";
+      $("progress-detail").textContent = "Processing transcript…";
+      $("progress-bar").style.width = "50%";
+      const stamps = nowStamps();
+      runStamp = stamps.ts;
+      pyodide.globals.set("ts_blocks_json", JSON.stringify(tsBlocks.filter(b => b.trim())));
+      pyodide.globals.set("variables_json", JSON.stringify(vars));
+      pyodide.globals.set("run_day", stamps.day);
+      const r = JSON.parse(await pyodide.runPythonAsync(`
+import json, mobile
+json.dumps(mobile.process_transcripts(json.loads(ts_blocks_json), json.loads(variables_json), run_day))
+`));
+      outputs = [{ name: r.name, size: r.size, kind: "transcript" }];
+      $("progress-bar").style.width = "100%";
+      dbg(`transcript done (${r.calls} call(s))`); dbgStats();
+      showDone();
+    } catch (e) {
+      dbg("TRANSCRIPT FAILED: " + e);
+      $("progress-card").classList.add("hidden");
+      $("setup-ui").classList.remove("hidden");
+      status("Something went wrong with that transcript. Please try again — and if it keeps happening, " +
+             "send feedback with the 💬 button.", { spin: false, error: true });
+    }
+    return;
+  }
+
   try {
     if (files.some(f => /\.(docx|pptx)$/i.test(f.name))) {
       $("progress-title").textContent = "Preparing";
@@ -472,13 +561,13 @@ json.dumps(_outs)
 };
 
 /* ── results ── */
-const KIND_LABEL = { combined: "Combined", "large-part": "Part", file: "" };
+const KIND_LABEL = { combined: "Combined", "large-part": "Part", file: "", transcript: "Transcript" };
 function showDone() {
   $("progress-card").classList.add("hidden");
   $("done-card").classList.remove("hidden");
-  const nSources = files.length;
-  $("done-title").textContent = nSources === 1
-    ? "Your document is AI-ready" : `${nSources} documents are AI-ready`;
+  const nSources = tsOn ? 1 : files.length;
+  $("done-title").textContent = tsOn ? "Your transcript is AI-ready"
+    : nSources === 1 ? "Your file is AI-ready" : `${nSources} files are AI-ready`;
   $("done-sub").textContent = nSources > 1
     ? "The Combined file holds everything in one place — or save the individual files below it."
     : "Save your AI-ready file, then add it to your AI chat or library.";

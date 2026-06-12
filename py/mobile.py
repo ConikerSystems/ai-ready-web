@@ -172,6 +172,55 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
     return outputs
 
 
+def process_transcripts(blocks: list, variables: list, process_date: str) -> dict:
+    """Paste-text Call Transcripts — mirrors the desktop /transcripts/process
+    route exactly: verbatim transcript spec output, auto-mask HARD PII only
+    (SSNs + payment cards), user replacements, redaction disclosure, masked
+    topic-derived filename. (Mobile excludes the desktop's audio/Voice Memos
+    transcription paths by design.)"""
+    from converters import transcript_converter
+    from masking.masker import HARD_PII_LABELS
+    results = []
+    for block in blocks:
+        block = (block or "").strip()
+        if block:
+            results.append(transcript_converter.convert(block, len(results) + 1, process_date))
+    if not results:
+        raise ValueError("All transcript blocks were empty")
+
+    combined_md = transcript_converter.combine(results)
+    combined_md, hardpii_stats = mask_text(combined_md, "full", only=HARD_PII_LABELS)
+    custom_stats = []
+    if variables:
+        combined_md, _n, custom_stats = assembly._apply_custom_variables(combined_md, variables)
+
+    disclosure = transcript_converter.build_redaction_disclosure(
+        [(s.label, s.count) for s in hardpii_stats], custom_stats)
+    if disclosure:
+        anchor = "## ⚙ AI SUMMARY SPECIFICATION"
+        if anchor in combined_md:
+            combined_md = combined_md.replace(anchor, disclosure + "\n\n" + anchor, 1)
+        else:
+            combined_md = disclosure + "\n\n" + combined_md
+
+    first = results[0]
+    safe_topic = first["topic"]
+    if variables:
+        safe_topic, _n2, _s2 = assembly._apply_custom_variables(safe_topic, variables)
+    name = transcript_converter.build_filename(
+        first["date"], transcript_converter._topic_slug(safe_topic))
+    if not name.endswith(".md"):
+        name += ".md"
+
+    out_dir = assembly.OUTPUTS_DIR
+    os.makedirs(out_dir, exist_ok=True)
+    for old in os.listdir(out_dir):
+        os.remove(os.path.join(out_dir, old))
+    with open(os.path.join(out_dir, name), "w", encoding="utf-8") as f:
+        f.write(combined_md)
+    return {"name": name, "size": len(combined_md.encode("utf-8")), "calls": len(results)}
+
+
 def build_zip(zip_name: str) -> str:
     """Zip everything in OUTPUTS_DIR (the whole run package)."""
     out_dir = assembly.OUTPUTS_DIR
