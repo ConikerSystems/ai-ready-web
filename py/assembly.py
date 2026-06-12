@@ -6,16 +6,18 @@ combined-output machinery), so mobile output format matches the desktop app
 exactly. Source of truth is app.py — when these functions change there,
 re-extract here (see CLAUDE.md sync rule).
 
-Extracted spans (app.py line ranges as of v1.3.25): 129-292 constants +
+Extracted spans (app.py line ranges as of v1.3.26): 129-326 constants +
 helpers (_LEGAL_DISCLAIMER/_WORKING_NOTES_BLOCK/_APPEND_MARKER/_doc_order_key/
-_masking_rule/_mask_label/_compute_sha256/_make_slug), 294-765
-_assemble_gold_master, 810-849 _term_to_regex/_apply_custom_variables (without
-the desktop-only _check_builtin_overlap note), 937-1014 registry/group helpers
-+ _simple_combined, 1026-1091 _PART_TARGET/_split_gold_master, 1093-1217
-_emit_combined_group. Only edits: this header, imports, OUTPUTS_DIR/VERSION
-module globals (set by mobile.py at runtime), overlap-note stub.
+preamble constants + markers/_masking_rule/_mask_label/_global_rules/
+_front_matter/_compute_sha256/_make_slug), 328-821 _assemble_gold_master,
+856-904 _term_to_regex/_apply_custom_variables, 993-1079 registry/group
+helpers + _simple_combined, 1091-1172 _PART_TARGET/_split_gold_master,
+1174-1314 _emit_combined_group. Only edits: this header, imports,
+OUTPUTS_DIR/VERSION module globals (set by mobile.py at runtime),
+overlap-note stub.
 """
 import hashlib
+import json
 import os
 import re
 from datetime import datetime
@@ -57,10 +59,10 @@ _APPEND_MARKER = (
     "  ⬆ APPEND NEW (NEWER) SOURCE DOCUMENTS IMMEDIATELY BELOW THIS MARKER\n"
     "  This file is ordered NEWEST-FIRST, so new material goes on TOP:\n"
     "  1. Run the new document through AI Ready by itself.\n"
-    "  2. COPY ITS WHOLE OUTPUT FILE and paste it right below this marker — each\n"
-    "     AI Ready output already begins with `# ===== START FILE: ... =====` and\n"
-    "     ends with `# ===== END FILE: ... =====`, so the AI treats it as a source.\n"
-    "     No manual wrapping needed; it becomes the newest entry, on top.\n"
+    "  2. From its output file, COPY everything FROM the `# ===== START FILE: ... =====`\n"
+    "     line DOWN TO the `# ===== END FILE: ... =====` line (skip the `---` metadata\n"
+    "     block at the very top — that belongs to standalone files only) and paste it\n"
+    "     right below this marker. It becomes the newest entry, on top.\n"
     "  3. Update your Working Notes above.\n"
     "  ============================================================= -->\n"
 )
@@ -107,9 +109,31 @@ _AI_PREAMBLE_TAIL = (
     "> **5. Multi-source files.** If this file contains multiple source documents (SRC-001, SRC-002, etc.), "
     "identify which source each answer comes from and cite its anchor prefix.\n"
     ">\n"
-    "> **6. This is not medical, legal, or financial advice.** Always recommend the user verify against "
+    "> **6. Reading a fragment (retrieved excerpt).** In a knowledge library you may see only a slice of "
+    "this file, without this header. Every page heading names its source document "
+    "(“Page 12 — contract.pdf”) and every page anchor id encodes source + page "
+    "(“src07-contract … 012”): attribute and cite from those even when this header is not "
+    "visible, and never assume an excerpt is the whole document.\n"
+    ">\n"
+    "> **7. This is not medical, legal, or financial advice.** Always recommend the user verify against "
     "original source documents and consult qualified professionals for decisions."
 )
+
+# Markers used when a Gold Master is assembled WITHOUT its global preamble (the
+# combined-output path): the per-file output replaces them with the real rules/
+# notice text so standalone files stay self-contained, while combined files carry
+# the rules ONCE per part instead of once per document (capacity + retrieval noise).
+_MARK_RULES = "<!-- AIR:RULES -->"
+_MARK_NOTICE = "<!-- AIR:NOTICE -->"
+_RULES_POINTER = (
+    "> *AI instructions and the legal notice for this document are at the top of this combined file.*"
+)
+
+
+def _global_rules(mask_mode: str, skip_all_masking: bool = False) -> str:
+    """The document-type-independent AI rules block (rules 1–7). Type-specific
+    rule 8 (tax/medical/document-index) stays with each document."""
+    return _AI_PREAMBLE_HEAD + _masking_rule(mask_mode, skip_all_masking) + _AI_PREAMBLE_TAIL
 
 
 def _masking_rule(mask_mode: str, skip_all_masking: bool = False) -> str:
@@ -141,10 +165,22 @@ def _mask_label(mask_mode: str, skip_all_masking: bool = False) -> str:
         return "none — UNMASKED (all values verbatim from source)"
     return f"{mask_mode} — MASKED"
 
+
+def _front_matter(kind: str, fields: list) -> str:
+    """Machine-readable YAML front matter for every output file (tooling can
+    parse provenance without regex; AI assistants read it as plain metadata).
+    Values are JSON-encoded, which is valid YAML and handles quotes/colons in
+    filenames safely."""
+    lines = ["---", f"kind: {kind}"]
+    for key, value in fields:
+        lines.append(f"{key}: {json.dumps(value, ensure_ascii=False)}")
+    lines += ["---", ""]
+    return "\n".join(lines) + "\n"
+
 # Appended only for Tax Form documents (the only type with a Tax Line Index).
 _AI_PREAMBLE_TAX = (
     "\n>\n"
-    "> **7. Tax Line Index integrity.** Values in the Tax Line Index (Section 1) are extracted verbatim "
+    "> **8. Tax Line Index integrity.** Values in the Tax Line Index (Section 1) are extracted verbatim "
     "from the source document — never computed, estimated, or derived. "
     "When answering tax questions, cite both the Tax Line Index entry AND the source page anchor in Section 3. "
     "Do not calculate or derive values not explicitly present in the source."
@@ -153,7 +189,7 @@ _AI_PREAMBLE_TAX = (
 # Appended only for Medical Document types (the only type with a Medical Value Index).
 _AI_PREAMBLE_MEDICAL = (
     "\n>\n"
-    "> **7. Medical Value Index integrity.** Values in the Medical Value Index (Section 1) are extracted "
+    "> **8. Medical Value Index integrity.** Values in the Medical Value Index (Section 1) are extracted "
     "verbatim from the source report — never computed, estimated, or interpreted. Each row is a single "
     "test/result with its units, reference range, and any abnormal flag (H/L/Critical) exactly as printed. "
     "When answering, cite both the index entry AND the source page anchor in Section 3, and surface any "
@@ -166,7 +202,7 @@ _AI_PREAMBLE_MEDICAL = (
 # audit index — legal, LLC, insurance, financial, generic, etc.).
 _AI_PREAMBLE_LEGAL = (
     "\n>\n"
-    "> **7. Document Index integrity.** Entries in the Document Index (Section 1) — parties, dates, amounts, "
+    "> **8. Document Index integrity.** Entries in the Document Index (Section 1) — parties, dates, amounts, "
     "defined terms, numbered references (e.g. Section 9.4, Article XI, a statute or case citation), section/"
     "exhibit headings, and case numbers — are read verbatim from the source and each links to the page in "
     "Section 3 where it appears. Use the index to navigate and to cite the exact source page and reference "
@@ -195,7 +231,8 @@ def _assemble_gold_master(
     filename: str, meta: dict, sha256_hash: str, mask_mode: str,
     process_date: str, section3_md: str,
     file_slug: str = "", skip_all_masking: bool = False,
-    condense_report: dict | None = None
+    condense_report: dict | None = None,
+    include_preamble: bool = True
 ) -> str:
     content_type = meta.get("content_type", "Document")
     form = meta.get("form", "")
@@ -212,6 +249,18 @@ def _assemble_gold_master(
 
     anchor_prefix = re.escape(file_slug) if file_slug else "page"
     extracted_pages = len(re.findall(rf'<a id="{anchor_prefix}-page-\d+"', section3_md))
+
+    # RAG self-identification: suffix every page/slide heading with the source
+    # filename so a retrieved CHUNK of a knowledge library names its document
+    # ("### Page 12" alone is ambiguous across a multi-document library). Keyed
+    # on the converter-generated anchor (optionally followed by Bates/blockquote
+    # annotation lines) so verbatim source text that happens to start with "###"
+    # is never touched. Anchors themselves are unchanged.
+    section3_md = re.sub(
+        rf'(<a id="{anchor_prefix}-page-\d+[^"]*"></a>(?:\s*\n>[^\n]*)*\s*\n+)(###[^\n]+)',
+        lambda m: m.group(1) + m.group(2) + f" — {filename}",
+        section3_md)
+
     image_only = section3_md.count("image-only or scanned page")
     unextractable = section3_md.count("No extractable text after filtering")
     anchors_unique = "Yes — source-specific prefix" if file_slug else "No — generic (single-file mode)"
@@ -604,22 +653,32 @@ def _assemble_gold_master(
     # Tailor the AI instructions to the document type: only tax forms get the
     # Tax Line Index rule, so a medical/legal file doesn't reference a section
     # it doesn't have.
-    ai_preamble = _AI_PREAMBLE_HEAD + _masking_rule(mask_mode, skip_all_masking) + _AI_PREAMBLE_TAIL + (
+    type_rules = (
         _AI_PREAMBLE_TAX if (content_type == "Tax Form" and _has_tabular)
         else _AI_PREAMBLE_MEDICAL if (content_type == "Medical Document" and _has_tabular)
         else _AI_PREAMBLE_LEGAL if (_show_doc_index and meta.get("legal_index_reliable", False))
         else ""
     )
+    if include_preamble:
+        # Standalone file: fully self-contained (rules + notice in the file).
+        preamble_blocks = [
+            _global_rules(mask_mode, skip_all_masking) + type_rules,
+            "",
+            _LEGAL_DISCLAIMER,
+        ]
+    else:
+        # Combined-output section: the global rules + legal notice live ONCE in
+        # the combined part header. Markers let the per-file output (written
+        # from the same masked text) re-insert the full blocks, so standalone
+        # files lose nothing. Type-specific rules stay with their document.
+        preamble_blocks = [_MARK_RULES + type_rules, "", _MARK_NOTICE]
 
     parts = [
         f"# Gold Master — {filename}",
         "",
         f"> Generated by AI Ready {VERSION} | {process_date}",
         "",
-        ai_preamble,
-        "",
-        _LEGAL_DISCLAIMER,
-    ] + scanned_alert + [
+    ] + preamble_blocks + scanned_alert + [
         "",
         "---",
         "",
@@ -656,14 +715,12 @@ def _assemble_gold_master(
         "",
         "---",
         "",
-        _LEGAL_DISCLAIMER,
-        "",
+    ] + ([_LEGAL_DISCLAIMER, ""] if include_preamble else []) + [
         f"*Gold Master generated by AI Ready {VERSION}*  ",
         f"*SHA-256: `{sha256_hash}`*",
     ]
 
     return "\n".join(parts)
-
 def _term_to_regex(term: str) -> str:
     """
     Build a case-insensitive, whitespace-tolerant regex for a literal phrase so
@@ -672,8 +729,6 @@ def _term_to_regex(term: str) -> str:
     """
     tokens = re.split(r"\s+", term.strip())
     return r"\s+".join(re.escape(t) for t in tokens if t)
-
-
 
 
 def _apply_custom_variables(text: str, variables: list[dict]) -> tuple[str, int, list[dict]]:
@@ -715,7 +770,6 @@ def _apply_custom_variables(text: str, variables: list[dict]) -> tuple[str, int,
             "overlap": overlap,
         })
     return text, count, stats
-
 def _make_reg_rows(reg_entries: list) -> str:
     """Combined Source Registry table. Carries the full folder path (the hierarchy
     key) so every source document is traceable to its exact place in the tree —
@@ -776,20 +830,29 @@ def _sanitize_group_base(name: str, used: set) -> str:
 
 
 def _simple_combined(combined_path: str, registry: list, raw_content: str,
-                     timestamp: str, mask_mode: str, files_processed: int) -> None:
+                     timestamp: str, mask_mode: str, files_processed: int,
+                     skip_all_masking: bool = False) -> None:
     """Fallback: write combined file directly without splitting."""
     reg_table = _make_reg_rows(registry)
+    front_matter = _front_matter("ai-ready/combined", [
+        ("files", files_processed),
+        ("mask", _mask_label(mask_mode, skip_all_masking)),
+        ("generated", datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+        ("tool", f"AI Ready {VERSION}"),
+    ])
     header = (
         f"# AI Ready — Combined Document\n\n"
         f"> **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"> **Files combined:** {files_processed}\n"
-        f"> **Mask mode:** {_mask_label(mask_mode)}\n\n"
+        f"> **Mask mode:** {_mask_label(mask_mode, skip_all_masking)}\n\n"
+        f"{_global_rules(mask_mode, skip_all_masking)}\n\n"
         f"{_LEGAL_DISCLAIMER}\n\n---\n\n"
         f"## Combined Source Registry\n\n"
         f"{reg_table}\n\n---\n\n"
         f"{_WORKING_NOTES_BLOCK}"
     )
     with open(combined_path, "w", encoding="utf-8") as f:
+        f.write(front_matter)
         f.write(header)
         f.write(_APPEND_MARKER)     # top append zone — newest-first, add new docs on top
         f.write(raw_content)
@@ -808,6 +871,12 @@ def _split_gold_master(md: str, filename: str, file_slug: str, sha: str,
     carry a banner + their page range. Returns [{name, size, lo, hi}], or [] if the
     document has no page anchors to split on (caller keeps the monolith)."""
     pt = part_target or _PART_TARGET   # None → module global at call time (keeps tests)
+    # The per-file .md leads with YAML front matter; strip it here and give each
+    # part its OWN front matter (with part numbers) at the very top instead.
+    if md.startswith("---\n"):
+        _fm_end = md.find("\n---\n", 4)
+        if _fm_end != -1:
+            md = md[_fm_end + 5:].lstrip("\n")
     anchor_re = re.compile(r'<a id="' + re.escape(file_slug) + r'-page-(\d+)[^"]*"></a>')
     matches = list(anchor_re.finditer(md))
     if not matches:
@@ -848,10 +917,20 @@ def _split_gold_master(md: str, filename: str, file_slug: str, sha: str,
             f"**Document Index and audit rules are in Part 01**, mapping every element "
             f"to its source page.\n\n---\n\n"
         )
+        part_fm = _front_matter("ai-ready/gold-master-part", [
+            ("source", filename),
+            ("sha256", sha),
+            ("pages", f"{lo}-{hi} of {page_count}"),
+            ("part", i),
+            ("parts", total),
+            ("mask", _mask_label(mask_mode)),
+            ("tool", f"AI Ready {VERSION}"),
+        ])
         if i == 1:
-            text = banner + preamble + body
+            text = part_fm + banner + preamble + body
         else:
-            text = (f"# AI Ready — {filename} (Part {i} of {total})\n\n"
+            text = (part_fm
+                    + f"# AI Ready — {filename} (Part {i} of {total})\n\n"
                     + banner
                     + f"## ◈ Section 3 (continued) — source pages {lo}–{hi}\n"
                     + body)
@@ -863,7 +942,8 @@ def _split_gold_master(md: str, filename: str, file_slug: str, sha: str,
 def _emit_combined_group(base_name: str, label: str, registry: list,
                          raw_content: str, timestamp: str, gen_time: str,
                          mask_mode: str, files_in_group: int,
-                         part_target: int | None = None) -> tuple:
+                         part_target: int | None = None,
+                         skip_all_masking: bool = False) -> tuple:
     """Combine ONE group's pre-assembled sections (joined by START FILE markers)
     into output `.md`(s), splitting into ~1 MB parts at file boundaries (never
     mid-document). `base_name` is the output stem — a sanitized subfolder name in
@@ -878,7 +958,8 @@ def _emit_combined_group(base_name: str, label: str, registry: list,
     if not raw_sections:
         out_name = f"{base_name}.md"
         out_path = os.path.join(OUTPUTS_DIR, out_name)
-        _simple_combined(out_path, registry, raw_content, timestamp, mask_mode, files_in_group)
+        _simple_combined(out_path, registry, raw_content, timestamp, mask_mode, files_in_group,
+                         skip_all_masking=skip_all_masking)
         size = os.path.getsize(out_path) if os.path.exists(out_path) else 0
         return out_name, [{"name": out_name, "src_range": label, "file_count": len(registry),
                            "size": size, "oversized": False, "group": label}]
@@ -949,6 +1030,15 @@ def _emit_combined_group(base_name: str, label: str, registry: list,
                 f"uploading this file's individual `.md` output for targeted questions.\n"
             )
 
+        front_matter = _front_matter("ai-ready/combined", [
+            ("title", label),
+            ("part", part_idx),
+            ("parts", total_parts),
+            ("files", len(part_registry)),
+            ("mask", _mask_label(mask_mode, skip_all_masking)),
+            ("generated", gen_time),
+            ("tool", f"AI Ready {VERSION}"),
+        ])
         header = (
             f"# AI Ready — {label}"
             f"{f' (Part {part_idx} of {total_parts})' if needs_split else ''}\n\n"
@@ -956,9 +1046,13 @@ def _emit_combined_group(base_name: str, label: str, registry: list,
             f"> **Generated:** {gen_time}\n"
             f"> **Files in this part:** {len(part_registry)}"
             f"{f' of {files_in_group} in this folder' if needs_split else ''}\n"
-            f"> **Mask mode:** {_mask_label(mask_mode)}\n"
+            f"> **Mask mode:** {_mask_label(mask_mode, skip_all_masking)}\n"
             f"{xref_block}"
             f"{oversized_notice}\n"
+            # The global AI rules + legal notice appear ONCE per part (each part is
+            # uploaded on its own) instead of once per document — the per-document
+            # sections carry a one-line pointer plus their type-specific rules.
+            f"{_global_rules(mask_mode, skip_all_masking)}\n\n"
             f"{_LEGAL_DISCLAIMER}\n\n---\n\n"
             f"## Combined Source Registry"
             f"{f' (Part {part_idx} of {total_parts})' if needs_split else ''}\n\n"
@@ -967,6 +1061,7 @@ def _emit_combined_group(base_name: str, label: str, registry: list,
         )
 
         with open(part_path, "w", encoding="utf-8") as f_out:
+            f_out.write(front_matter)
             f_out.write(header)
             # Append zone at the TOP (part 1, after the working notes, before the first
             # source) so newly added documents land on top — keeping the file newest-first.

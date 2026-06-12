@@ -1069,7 +1069,7 @@ def convert(file_path: str, filename: str, process_date: str, file_slug: str = "
     # For fully-scanned documents where pre-OCR text was empty, re-run content
     # detection on the OCR output — OCR may have revealed the document type
     if meta["content_type"] == "PDF Document" and meta.get("ocr_pages", 0) > 0:
-        ocr_text = re.sub(r'<a id="[^"]+"></a>|### Page \d+ \([^)]+\)', '', combined)
+        ocr_text = re.sub(r'<a id="[^"]+"></a>|### Page \d+[^\n]*', '', combined)
         re_detected = content_detector.detect_content_type(ocr_text)
         if re_detected != "generic":
             new_type = {

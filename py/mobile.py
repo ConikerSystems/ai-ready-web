@@ -75,8 +75,12 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
         else:
             section3, meta = conv.convert(path, filename, process_date, slug)
 
+        # Desktop-parity (v1.3.26): assembled WITHOUT the global preamble —
+        # markers let the per-file output re-insert the full rules/notice while
+        # combined outputs carry them once per part.
         gold = assembly._assemble_gold_master(
-            filename, meta, sha, mask_mode, process_date, section3, file_slug=slug)
+            filename, meta, sha, mask_mode, process_date, section3, file_slug=slug,
+            include_preamble=False)
         del section3
 
         masked, _stats = mask_text(gold, mask_mode, collect=batch_names)
@@ -88,23 +92,39 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
         breadcrumb = filename
         stem = os.path.splitext(os.path.basename(filename))[0]
         out_name = stem + ".md"
+        page_count = meta.get("page_count", "?")
+        per_file_md = (masked
+                       .replace(assembly._MARK_RULES, assembly._global_rules(mask_mode), 1)
+                       .replace(assembly._MARK_NOTICE, assembly._LEGAL_DISCLAIMER, 1))
+        front_matter = assembly._front_matter("ai-ready/gold-master", [
+            ("source", filename),
+            ("sha256", sha),
+            ("pages", page_count),
+            ("mask", assembly._mask_label(mask_mode)),
+            ("generated", process_date),
+            ("tool", f"AI Ready {app_version}"),
+        ])
         with open(os.path.join(out_dir, out_name), "w", encoding="utf-8") as f:
+            f.write(front_matter)
             f.write(f"# ===== START FILE: {breadcrumb} =====\n\n")
-            f.write(masked)
+            f.write(per_file_md)
             f.write(f"\n\n# ===== END FILE: {breadcrumb} =====\n")
 
-        page_count = meta.get("page_count", "?")
         entry = {"src_id": src_id, "filename": filename, "folder_path": breadcrumb,
                  "page_count": page_count, "sha256": sha, "file_slug": slug}
-        if len(masked.encode("utf-8")) > pt:
+        if len(per_file_md.encode("utf-8")) > pt:
             large_files.append({**entry, "out_name": out_name})
         else:
+            section_md = (masked
+                          .replace(assembly._MARK_RULES, assembly._RULES_POINTER, 1)
+                          .replace("\n\n" + assembly._MARK_NOTICE + "\n\n", "\n\n", 1)
+                          .replace(assembly._MARK_NOTICE, "", 1))
             sections.append(f"\n\n---\n\n# ===== START FILE: {breadcrumb} ({src_id}) =====\n\n"
-                            + masked
+                            + section_md
                             + f"\n\n# ===== END FILE: {breadcrumb} ({src_id}) =====\n")
             registry.append(entry)
         results.append(out_name)
-        del masked
+        del masked, per_file_md
         import gc; gc.collect()
 
     # Batch-wide name sweep over every individual .md (desktop parity).
