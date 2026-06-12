@@ -1,4 +1,4 @@
-# AI Ready Lite — Web (Proof of Concept)
+# AI Ready Mobile — Web (Proof of Concept)
 
 Browser version of [AI Ready](https://conikersystems.com): converts documents to
 AI-ready Markdown **entirely on your device** — files are never uploaded anywhere.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>About — AI Ready Lite</title>
+<title>About — AI Ready Mobile</title>
 <script src="static/js/version.js"></script>
 <style>
   :root { color-scheme: light dark; }
@@ -50,7 +50,7 @@
 </head>
 <body>
   <header class="about-bar">
-    <strong>📄 AI&nbsp;Ready&nbsp;Lite</strong>
+    <strong>📄 AI&nbsp;Ready&nbsp;Mobile</strong>
     <div>
       <a class="chip" href="index.html">← Back</a>
       <button class="chip" id="share-btn">📤 Share</button>
@@ -60,13 +60,13 @@
   <main>
     <div class="hero">
       <div class="logo">📄→🤖</div>
-      <h1>AI Ready Lite</h1>
+      <h1>AI Ready Mobile</h1>
       <p class="tagline">Make your documents AI-ready — right on your iPhone or iPad.</p>
     </div>
 
     <section>
       <h2>What It Does</h2>
-      <p>AI Ready Lite converts your documents (PDFs and more) into clean, structured
+      <p>AI Ready Mobile converts your documents (PDFs and more) into clean, structured
          <b>Markdown that AI assistants like Claude and ChatGPT can actually read</b> —
          with page anchors you can cite, document indexes, and verbatim text. Convert a
          file, save the result, and drop it into your AI chat or knowledge library.</p>
@@ -95,8 +95,8 @@
     </section>
 
     <section>
-      <h2>Lite vs. Desktop</h2>
-      <p>The Lite version is built for phone-sized jobs: digital (text-based) documents,
+      <h2>Mobile vs. Desktop</h2>
+      <p>The Mobile version is built for phone-sized jobs: digital (text-based) documents,
          a few files at a time. Scanned-document OCR, audio transcription, folder
          processing, and very large productions are features of the
          <b>AI Ready desktop app</b> for Mac and Windows.</p>
@@ -131,12 +131,12 @@
     // Share THIS About page — the link is passed separately in the share sheet's
     // `url` field so it isn't duplicated. (iOS appends `url` after `text`.)
     var ABOUT_URL = location.origin + location.pathname;
-    var SHARE_TEXT = "AI Ready Lite — turn your documents into AI-ready files, "
+    var SHARE_TEXT = "AI Ready Mobile — turn your documents into AI-ready files, "
       + "right on your phone. Private: nothing gets uploaded. Here's all about it, free:";
 
     document.getElementById("share-btn").onclick = async function () {
       if (navigator.share) {
-        try { await navigator.share({ title: "About AI Ready Lite", text: SHARE_TEXT, url: ABOUT_URL }); return; } catch (e) { return; }
+        try { await navigator.share({ title: "About AI Ready Mobile", text: SHARE_TEXT, url: ABOUT_URL }); return; } catch (e) { return; }
       }
       try { await navigator.clipboard.writeText(SHARE_TEXT + "\n" + ABOUT_URL); alert("Link copied — paste it into a text or email."); }
       catch (e) { window.prompt("Copy this link:", ABOUT_URL); }
