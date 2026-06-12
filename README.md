@@ -21,3 +21,9 @@ memory. Scanned-PDF OCR, audio transcription, folder ingest, legacy .doc/.ppt,
 and large legal productions remain desktop-app features.
 
 © Coniker Systems™
+
+## License
+
+Source-visible, **not** open source. © 2026 Coniker Systems™ — all rights
+reserved. The code is published only because a browser app must serve its code;
+see [LICENSE](LICENSE) for what is and isn't permitted.

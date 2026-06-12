@@ -1,0 +1,33 @@
+AI Ready™ — Proprietary License
+
+Copyright © 2026 Coniker Systems™. All rights reserved.
+
+This repository's source code is made publicly VISIBLE solely because the
+AI Ready Mobile application runs entirely in the user's web browser, which
+requires the code to be served openly. Visibility is not permission:
+this is source-available software, NOT open-source software.
+
+PERMITTED
+You may access and use the hosted AI Ready Mobile application (the web app
+served from this repository, e.g. via GitHub Pages) for your own personal
+or internal business document processing, including the in-browser
+execution of this code that such use necessarily entails.
+
+NOT PERMITTED — without prior written permission from Coniker Systems
+- Copying, downloading, or extracting any part of this source code for any
+  purpose other than the in-browser execution described above.
+- Modifying, adapting, translating, or creating derivative works of the code.
+- Redistributing, republishing, mirroring, sublicensing, selling, or hosting
+  the code or any derivative of it, in whole or in part.
+- Using the code, its structure, its algorithms, or its output formats to
+  build, train, or improve any competing product or service.
+- Removing or altering this notice.
+
+NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL CONIKER SYSTEMS BE LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE. AI Ready and any AI
+system analyzing its output can make mistakes; verify all output against
+original source documents before use in any professional context.
+
+Contact: info@conikersystems.com · conikersystems.com
