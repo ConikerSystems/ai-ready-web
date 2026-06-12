@@ -4,79 +4,172 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>AI Ready Mobile — Proof of Concept</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2563eb">
+<title>AI Ready Mobile</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script src="static/js/version.js"></script>
 <style>
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light dark; --brand: #2563eb; --line: #8884; --dim: #888; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    margin: 0; padding: 16px env(safe-area-inset-right) 32px env(safe-area-inset-left);
-    max-width: 720px; margin-inline: auto;
+    margin: 0; padding: 14px 16px calc(env(safe-area-inset-bottom) + 28px);
+    max-width: 640px; margin-inline: auto;
+    padding-top: calc(env(safe-area-inset-top) + 14px);
   }
-  h1 { font-size: 1.3rem; margin: 8px 0 2px; }
-  .sub { color: #777; font-size: .85rem; margin-bottom: 16px; }
-  .card { border: 1px solid #8884; border-radius: 12px; padding: 14px; margin: 12px 0; }
-  button {
-    font-size: 1rem; padding: 12px 18px; border-radius: 10px; border: none;
-    background: #2563eb; color: #fff; width: 100%; margin-top: 10px;
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  h1 { font-size: 1.35rem; margin: 0; letter-spacing: -.01em; }
+  .tagline { color: var(--dim); font-size: .88rem; margin: 2px 0 14px; }
+  .chip {
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px;
+    font-size: .85rem; text-decoration: none; color: inherit; white-space: nowrap; background: none;
   }
-  button:disabled { background: #9994; color: #888; }
-  input[type=file] { width: 100%; font-size: .95rem; }
-  #log { font-family: ui-monospace, Menlo, monospace; font-size: .78rem; white-space: pre-wrap;
-         background: #8881; border-radius: 8px; padding: 10px; min-height: 60px; }
-  #stats td { padding: 3px 10px 3px 0; font-size: .9rem; }
-  #stats td:first-child { color: #777; }
-  #preview { font-family: ui-monospace, Menlo, monospace; font-size: .72rem; white-space: pre-wrap;
-             max-height: 300px; overflow: auto; background: #8881; border-radius: 8px; padding: 10px; }
-  .ok { color: #16a34a; } .err { color: #dc2626; } .warn { color: #d97706; }
-  footer { text-align: center; color: #888; font-size: .8rem; margin-top: 28px; }
+  .card { border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin: 12px 0; }
+  .card h2 { font-size: .95rem; margin: 0 0 10px; }
+  .hint { font-size: .8rem; color: var(--dim); }
+
+  /* status banner */
+  #status-banner { display: flex; align-items: center; gap: 12px; }
+  .spinner { width: 20px; height: 20px; border: 2.5px solid var(--line); border-top-color: var(--brand);
+             border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* buttons */
+  .btn {
+    display: block; width: 100%; border: none; border-radius: 12px; padding: 14px 18px;
+    font-size: 1.05rem; font-weight: 600; background: var(--brand); color: #fff; cursor: pointer;
+  }
+  .btn:disabled { background: #9994; color: #888; }
+  .btn.quiet { background: none; border: 1px solid var(--line); color: inherit; font-weight: 500; }
+  .btn.small { width: auto; padding: 8px 14px; font-size: .9rem; display: inline-block; }
+
+  /* file list */
+  .file-row { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+  .file-row:last-child { border-bottom: none; }
+  .file-name { flex: 1; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-size { color: var(--dim); font-size: .8rem; flex: none; }
+  .file-x { border: none; background: none; color: var(--dim); font-size: 19px; cursor: pointer; flex: none; padding: 2px 6px; }
+
+  /* segmented control */
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: none; background: none; padding: 10px 4px; font-size: .88rem; color: inherit; cursor: pointer; }
+  .seg button.on { background: var(--brand); color: #fff; font-weight: 600; }
+
+  /* toggle switch */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+  .switch { position: relative; width: 48px; height: 28px; flex: none; }
+  .switch input { display: none; }
+  .switch span {
+    position: absolute; inset: 0; border-radius: 999px; background: #9994; transition: .2s;
+  }
+  .switch span::after {
+    content: ""; position: absolute; width: 24px; height: 24px; border-radius: 50%;
+    background: #fff; top: 2px; left: 2px; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .switch input:checked + span { background: var(--brand); }
+  .switch input:checked + span::after { left: 22px; }
+
+  /* replacements editor */
+  .var-row { display: flex; gap: 8px; margin: 8px 0; }
+  .var-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px;
+                   font-size: .9rem; background: none; color: inherit; }
+  .var-row .file-x { font-size: 17px; }
+
+  /* progress */
+  .bar { height: 8px; border-radius: 999px; background: #9993; overflow: hidden; margin-top: 12px; }
+  .bar > div { height: 100%; width: 0%; background: var(--brand); border-radius: 999px; transition: width .3s; }
+
+  /* results */
+  .done-head { display: flex; align-items: center; gap: 10px; font-weight: 650; margin-bottom: 6px; }
+  .ok-badge { font-size: 22px; }
+
+  footer { text-align: center; color: var(--dim); font-size: .8rem; margin-top: 30px; line-height: 2; }
+  footer a, footer button { color: inherit; background: none; border: none; font-size: .8rem;
+                            text-decoration: underline; cursor: pointer; padding: 0; }
+  .hidden { display: none !important; }
+
+  /* debug panel (only with ?debug=1) */
+  #debug-card { font-family: ui-monospace, Menlo, monospace; font-size: .74rem; }
+  #debug-log { white-space: pre-wrap; max-height: 240px; overflow: auto; }
 </style>
 </head>
 <body>
-<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-  <h1>AI Ready Mobile — Proof of Concept</h1>
-  <a href="about.html" style="border:1px solid #8885;border-radius:999px;padding:6px 13px;font-size:.85rem;text-decoration:none;color:inherit;white-space:nowrap">ℹ️ About</a>
-</div>
-<div class="sub">Converts a PDF to AI-ready Markdown <strong>entirely on this device</strong> — nothing is uploaded anywhere.</div>
 
-<div class="card">
-  <div id="boot-status">Loading Python runtime… <span id="boot-pct"></span></div>
-  <div id="device" style="font-size:.78rem;color:#888;margin-top:6px"></div>
-</div>
+<header>
+  <h1>📄 AI Ready</h1>
+  <a class="chip" href="about.html">ℹ️ About</a>
+</header>
+<div class="tagline">Make your documents AI-ready — everything stays on this device.</div>
 
-<div class="card">
-  <input type="file" id="pdf-input" accept="application/pdf,.pdf" disabled>
-  <button id="run-btn" disabled>Convert PDF</button>
+<div class="card" id="status-card">
+  <div id="status-banner">
+    <div class="spinner" id="status-spinner"></div>
+    <div id="status-text">Getting things ready…</div>
+  </div>
 </div>
 
-<div class="card">
-  <strong style="font-size:.9rem">Telemetry</strong>
-  <table id="stats">
-    <tr><td>Runtime load</td><td id="t-boot">—</td></tr>
-    <tr><td>File size</td><td id="t-fsize">—</td></tr>
-    <tr><td>Conversion time</td><td id="t-conv">—</td></tr>
-    <tr><td>Output size</td><td id="t-osize">—</td></tr>
-    <tr><td>WASM heap (now / peak)</td><td id="t-heap">—</td></tr>
-  </table>
+<div id="setup-ui">
+  <div class="card">
+    <h2>Documents</h2>
+    <input type="file" id="file-input" class="hidden" multiple
+           accept=".pdf,.docx,.pptx,.txt,.md,application/pdf">
+    <div id="file-list"></div>
+    <button class="btn quiet" id="choose-btn" disabled>＋ Choose Documents</button>
+    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 20 documents, 25 MB each.</div>
+  </div>
+
+  <div class="card">
+    <h2>Privacy</h2>
+    <div class="seg" id="mask-seg">
+      <button data-mode="full" class="on">Full Mask</button>
+      <button data-mode="soft">Soft Mask</button>
+      <button data-mode="none">No Mask</button>
+    </div>
+    <div class="hint" id="mask-hint" style="margin-top:8px"></div>
+
+    <div class="switch-row">
+      <div>
+        <div style="font-size:.92rem;font-weight:600">Replacements</div>
+        <div class="hint">Swap or remove specific names, addresses, or phrases.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="vars-toggle"><span></span></label>
+    </div>
+    <div id="vars-editor" class="hidden">
+      <div id="vars-rows"></div>
+      <button class="btn quiet small" id="vars-add">＋ Add a replacement</button>
+    </div>
+  </div>
+
+  <button class="btn" id="run-btn" disabled>Make AI-Ready</button>
 </div>
 
-<div class="card">
-  <strong style="font-size:.9rem">Log</strong>
-  <div id="log"></div>
+<div class="card hidden" id="progress-card">
+  <h2 id="progress-title">Working…</h2>
+  <div class="hint" id="progress-detail"></div>
+  <div class="bar"><div id="progress-bar"></div></div>
 </div>
 
-<div class="card" id="result-card" style="display:none">
-  <strong style="font-size:.9rem">Output preview (first 3,000 chars)</strong>
-  <div id="preview"></div>
-  <button id="dl-btn">Save Markdown file</button>
+<div class="card hidden" id="done-card">
+  <div class="done-head"><span class="ok-badge">✅</span><span id="done-title">Done</span></div>
+  <div class="hint" id="done-sub" style="margin-bottom:6px">Save your AI-ready files, then add them to your AI chat or library.</div>
+  <div id="done-list"></div>
+  <button class="btn" id="save-all-btn" style="margin-top:14px">Save All</button>
+  <button class="btn quiet" id="again-btn" style="margin-top:8px">Convert More Documents</button>
 </div>
 
-<footer>© <span id="cr-years"></span> Coniker Systems™ · v<span id="app-ver"></span> · Pyodide v314.0.0 · <a href="about.html" style="color:inherit">About</a></footer>
-<script>
-  document.getElementById('cr-years').textContent = new Date().getFullYear();
-  document.getElementById('app-ver').textContent = window.APP_VERSION || '0.1';
-</script>
+<div class="card hidden" id="debug-card">
+  <strong>Debug</strong>
+  <div id="debug-stats"></div>
+  <div id="debug-log"></div>
+</div>
+
+<footer>
+  © <span id="cr-years"></span> Coniker Systems™ · v<span id="app-ver"></span><br>
+  <button id="update-btn">🔄 Check for Updates</button> · <a href="about.html">About</a>
+</footer>
 
 <script>
   window.APP_INFO = {
@@ -88,129 +181,317 @@
 <script src="static/js/feedback.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v314.0.0/full/pyodide.js"></script>
 <script>
+"use strict";
 const $ = id => document.getElementById(id);
-const log = (msg, cls) => {
-  const line = document.createElement('div');
-  if (cls) line.className = cls;
-  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  $('log').appendChild(line);
-};
-const fmtMB = b => (b / 1048576).toFixed(1) + ' MB';
+const DEBUG = new URLSearchParams(location.search).has("debug");
+const fmtMB = b => (b / 1048576).toFixed(1) + " MB";
 
-let pyodide = null, peakHeap = 0, lastMd = '', lastName = 'output.md';
+document.getElementById("cr-years").textContent = new Date().getFullYear();
+document.getElementById("app-ver").textContent = window.APP_VERSION || "1.0";
+if (DEBUG) $("debug-card").classList.remove("hidden");
 
-function heapNow() {
-  try { return pyodide._module.HEAPU8.length; } catch { return 0; }
+function dbg(msg) {
+  console.log("[AI Ready]", msg);
+  if (DEBUG) {
+    const line = document.createElement("div");
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    $("debug-log").appendChild(line);
+  }
 }
-function trackHeap() {
-  const h = heapNow();
-  if (h > peakHeap) peakHeap = h;
-  if (h) $('t-heap').textContent = `${fmtMB(h)} / ${fmtMB(peakHeap)}`;
-  return h;
+function dbgStats() {
+  if (!DEBUG || !pyodide) return;
+  try { $("debug-stats").textContent = "wasm heap: " + fmtMB(pyodide._module.HEAPU8.length); } catch {}
 }
 
-const PY_FILES = ['__init__.py','pdf_converter.py','content_detector.py','medical_index.py',
-                  'bates.py','legal_index.py','integrity.py','grid_forms.py'];
+/* ── limits (agreed mobile scope) ── */
+const MAX_FILES = 20, MAX_FILE_MB = 25, MAX_BATCH_MB = 100;
+const OK_EXT = [".pdf", ".docx", ".pptx", ".txt", ".md"];
+
+/* ── state ── */
+let pyodide = null, officeReady = null, files = [], outputs = [];
+
+/* ── status banner ── */
+function status(text, { spin = true, error = false } = {}) {
+  $("status-card").classList.remove("hidden");
+  $("status-text").innerHTML = text;
+  $("status-spinner").style.display = spin ? "" : "none";
+  $("status-text").style.color = error ? "#dc2626" : "";
+}
+function statusHide() { $("status-card").classList.add("hidden"); }
+
+/* ── boot ── */
+const PY_DIRS = { "converters": ["__init__.py","pdf_converter.py","content_detector.py","medical_index.py",
+                                 "bates.py","legal_index.py","integrity.py","grid_forms.py",
+                                 "docx_converter.py","pptx_converter.py","text_converter.py"],
+                  "masking": ["__init__.py","masker.py"] };
 
 async function boot() {
-  const t0 = performance.now();
-  $('device').textContent = `${navigator.userAgent.slice(0, 110)} · touch:${navigator.maxTouchPoints}`;
   try {
-    log('Loading Pyodide core…');
-    pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.0/full/' });
-    trackHeap();
-    log('Loading PyMuPDF (≈17 MB, cached after first load)…');
-    $('boot-status').textContent = 'Loading PyMuPDF…';
-    await pyodide.loadPackage('pymupdf');
-    trackHeap();
-    log('Installing AI Ready converter modules…');
-    pyodide.FS.mkdirTree('/app/converters');
-    for (const f of PY_FILES) {
-      const resp = await fetch(`py/converters/${f}`);
-      if (!resp.ok) throw new Error(`module ${f} failed to download (HTTP ${resp.status})`);
-      pyodide.FS.writeFile(`/app/converters/${f}`, await resp.text());
+    status("Getting things ready… <span class='hint'>(first time takes a little longer)</span>");
+    dbg("loading Pyodide core");
+    pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v314.0.0/full/" });
+    dbg("loading PDF engine"); dbgStats();
+    await pyodide.loadPackage("pymupdf");
+    dbg("installing AI Ready modules"); dbgStats();
+    pyodide.FS.mkdirTree("/app/converters");
+    pyodide.FS.mkdirTree("/app/masking");
+    for (const [dir, names] of Object.entries(PY_DIRS)) {
+      for (const f of names) {
+        const resp = await fetch(`py/${dir}/${f}`);
+        if (!resp.ok) throw new Error(`${dir}/${f} failed to download (HTTP ${resp.status})`);
+        pyodide.FS.writeFile(`/app/${dir}/${f}`, await resp.text());
+      }
     }
-    pyodide.runPython(`import sys; sys.path.insert(0, '/app')`);
-    pyodide.runPython(`from converters import pdf_converter`);  // import up front: fail fast
-    const secs = ((performance.now() - t0) / 1000).toFixed(1);
-    $('t-boot').textContent = secs + ' s';
-    $('boot-status').innerHTML = `<span class="ok">✅ Ready — Python + PyMuPDF + AI Ready pipeline loaded (${secs} s)</span>`;
-    $('pdf-input').disabled = false;
-    $('run-btn').disabled = false;
-    log(`Boot complete in ${secs} s.`, 'ok');
-    trackHeap();
+    const respM = await fetch("py/mobile.py");
+    if (!respM.ok) throw new Error("mobile.py failed to download");
+    pyodide.FS.writeFile("/app/mobile.py", await respM.text());
+    pyodide.runPython("import sys; sys.path.insert(0, '/app')");
+    pyodide.runPython("import mobile");
+    // Word/PowerPoint support loads quietly in the background; PDFs work now.
+    officeReady = (async () => {
+      dbg("loading Word/PowerPoint support in background");
+      await pyodide.loadPackage("micropip");
+      const micropip = pyodide.pyimport("micropip");
+      await micropip.install(["python-docx", "python-pptx"]);
+      dbg("Word/PowerPoint support ready"); dbgStats();
+    })();
+    statusHide();
+    $("choose-btn").disabled = false;
+    refreshRunBtn();
+    dbg("ready"); dbgStats();
   } catch (e) {
-    $('boot-status').innerHTML = `<span class="err">❌ Failed to load: ${e}</span>`;
-    log(`BOOT FAILED: ${e}`, 'err');
+    dbg("BOOT FAILED: " + e);
+    status("Couldn't get ready — please check your internet connection, then " +
+           "<a href='#' onclick='location.reload();return false'>try again</a>.", { spin: false, error: true });
   }
 }
 
-async function convert() {
-  const file = $('pdf-input').files[0];
-  if (!file) { log('Pick a PDF first.', 'warn'); return; }
-  $('run-btn').disabled = true;
-  $('result-card').style.display = 'none';
-  $('t-fsize').textContent = fmtMB(file.size);
+/* ── file picking ── */
+$("choose-btn").onclick = () => $("file-input").click();
+$("file-input").addEventListener("change", () => {
+  for (const f of $("file-input").files) {
+    const ext = "." + f.name.split(".").pop().toLowerCase();
+    if (!OK_EXT.includes(ext)) {
+      alert(`"${f.name}" isn't a supported type.\n\nAI Ready Mobile handles PDF, Word (.docx), PowerPoint (.pptx), and text files. Spreadsheets, scanned documents, and audio need the desktop app.`);
+      continue;
+    }
+    if (f.size > MAX_FILE_MB * 1048576) {
+      alert(`"${f.name}" is ${fmtMB(f.size)} — larger than the ${MAX_FILE_MB} MB limit for the mobile version. Use the AI Ready desktop app for big files.`);
+      continue;
+    }
+    if (files.length >= MAX_FILES) {
+      alert(`That's the limit — up to ${MAX_FILES} documents at a time on mobile.`);
+      break;
+    }
+    const total = files.reduce((s, x) => s + x.size, 0) + f.size;
+    if (total > MAX_BATCH_MB * 1048576) {
+      alert(`Adding "${f.name}" would push this batch past ${MAX_BATCH_MB} MB. Convert what's here first, then do another batch.`);
+      break;
+    }
+    if (!files.some(x => x.name === f.name && x.size === f.size)) files.push(f);
+  }
+  $("file-input").value = "";
+  renderFiles();
+});
+
+function renderFiles() {
+  const list = $("file-list");
+  list.innerHTML = "";
+  files.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    row.innerHTML = `<span class="file-name"></span><span class="file-size">${fmtMB(f.size)}</span>
+                     <button class="file-x" aria-label="Remove">✕</button>`;
+    row.querySelector(".file-name").textContent = f.name;
+    row.querySelector(".file-x").onclick = () => { files.splice(i, 1); renderFiles(); };
+    list.appendChild(row);
+  });
+  refreshRunBtn();
+}
+function refreshRunBtn() { $("run-btn").disabled = !(pyodide && files.length); }
+
+/* ── masking controls ── */
+const MASK_HINTS = {
+  full: "Personal details (SSNs, account numbers, names, addresses…) are replaced with safe placeholders.",
+  soft: "Personal details are partially hidden — enough to recognize, not enough to expose.",
+  none: "The text is kept exactly as-is. Choose this only if the documents aren't sensitive.",
+};
+let maskMode = localStorage.getItem("aiready.maskmode") || "full";
+function renderMask() {
+  document.querySelectorAll("#mask-seg button").forEach(b =>
+    b.classList.toggle("on", b.dataset.mode === maskMode));
+  $("mask-hint").textContent = MASK_HINTS[maskMode];
+}
+document.querySelectorAll("#mask-seg button").forEach(b =>
+  b.onclick = () => { maskMode = b.dataset.mode; localStorage.setItem("aiready.maskmode", maskMode); renderMask(); });
+renderMask();
+
+/* ── replacements (find → replace pairs, saved on device) ── */
+const VKEY = "aiready.variables";
+const loadVars = () => { try { return JSON.parse(localStorage.getItem(VKEY)) || []; } catch { return []; } };
+const storeVars = (v) => localStorage.setItem(VKEY, JSON.stringify(v));
+let varsOn = localStorage.getItem("aiready.varson") === "1";
+$("vars-toggle").checked = varsOn;
+$("vars-editor").classList.toggle("hidden", !varsOn);
+$("vars-toggle").onchange = () => {
+  varsOn = $("vars-toggle").checked;
+  localStorage.setItem("aiready.varson", varsOn ? "1" : "0");
+  $("vars-editor").classList.toggle("hidden", !varsOn);
+  if (varsOn && !loadVars().length) addVarRow();
+};
+function renderVars() {
+  const rows = $("vars-rows"); rows.innerHTML = "";
+  loadVars().forEach((v, i) => {
+    const row = document.createElement("div");
+    row.className = "var-row";
+    row.innerHTML = `<input placeholder="Find (e.g. John Smith)"><input placeholder="Replace with (blank = remove)">
+                     <button class="file-x">✕</button>`;
+    const [fi, ri] = row.querySelectorAll("input");
+    fi.value = v.current || ""; ri.value = v.masked || "";
+    const save = () => { const all = loadVars(); all[i] = { current: fi.value, masked: ri.value }; storeVars(all); };
+    fi.oninput = save; ri.oninput = save;
+    row.querySelector(".file-x").onclick = () => { const all = loadVars(); all.splice(i, 1); storeVars(all); renderVars(); };
+    rows.appendChild(row);
+  });
+}
+function addVarRow() { const all = loadVars(); all.push({ current: "", masked: "" }); storeVars(all); renderVars(); }
+$("vars-add").onclick = addVarRow;
+renderVars();
+
+/* ── conversion ── */
+$("run-btn").onclick = async () => {
+  $("setup-ui").classList.add("hidden");
+  $("done-card").classList.add("hidden");
+  $("progress-card").classList.remove("hidden");
+  outputs = [];
+  const t0 = performance.now();
+  const vars = varsOn ? loadVars().filter(v => (v.current || "").trim()) : [];
+  const failures = [];
   try {
-    log(`Reading "${file.name}" (${fmtMB(file.size)})…`);
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    pyodide.FS.writeFile('/tmp/input.pdf', bytes);
-    trackHeap();
+    pyodide.runPython("import mobile, json; _outputs = {}; _names = set()");
+    pyodide.globals.set("mask_mode", maskMode);
+    pyodide.globals.set("variables_json", JSON.stringify(vars));
 
-    // page-progress callback so big files don't look frozen
-    let lastPct = -1;
-    pyodide.globals.set('js_progress', (done, total) => {
-      const pct = Math.floor(done / total * 100);
-      if (pct !== lastPct) { lastPct = pct; $('boot-status').textContent = `Converting… page ${done}/${total} (${pct}%)`; trackHeap(); }
-    });
-    pyodide.globals.set('js_stage', (label) => { $('boot-status').textContent = `Converting… ${label}`; trackHeap(); });
-    pyodide.globals.set('input_filename', file.name);
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const needsOffice = /\.(docx|pptx)$/i.test(f.name);
+      if (needsOffice) { $("progress-detail").textContent = "Preparing…"; await officeReady; }
+      $("progress-title").textContent = files.length > 1
+        ? `Converting ${i + 1} of ${files.length}` : "Converting";
+      $("progress-detail").textContent = f.name;
+      $("progress-bar").style.width = (i / files.length * 100) + "%";
 
-    log('Converting (real AI Ready pdf_converter)…');
-    const t0 = performance.now();
-    lastMd = await pyodide.runPythonAsync(`
-import re as _re
-from converters import pdf_converter
+      pyodide.FS.writeFile("/tmp/input", new Uint8Array(await f.arrayBuffer()));
+      pyodide.globals.set("input_filename", f.name);
+      let lastPct = -1;
+      pyodide.globals.set("js_progress", (done, total) => {
+        const pct = Math.floor(done / total * 100);
+        if (pct !== lastPct) {
+          lastPct = pct;
+          $("progress-detail").textContent = `${f.name} — page ${done} of ${total}`;
+          $("progress-bar").style.width = ((i + done / total) / files.length * 100) + "%";
+          dbgStats();
+        }
+      });
+      pyodide.globals.set("js_stage", (label) => { $("progress-detail").textContent = `${f.name} — finishing up…`; });
+      try {
+        await pyodide.runPythonAsync(`
+import json
 from datetime import date
-_slug = _re.sub(r'[^A-Za-z0-9]+', '_', input_filename.rsplit('.', 1)[0]).strip('_') or 'document'
-md, meta = pdf_converter.convert(
-    '/tmp/input.pdf', input_filename, date.today().isoformat(), _slug,
-    progress_cb=js_progress, stage_cb=js_stage)
-md
+_name, _md = mobile.process_file('/tmp/input', input_filename, date.today().isoformat(),
+                                 mask_mode, json.loads(variables_json), _names,
+                                 progress_cb=js_progress, stage_cb=js_stage)
+_base = _name
+_k = 2
+while _name in _outputs:
+    _name = _base[:-3] + f'_{_k}.md'; _k += 1
+_outputs[_name] = _md
 `);
-    const secs = ((performance.now() - t0) / 1000).toFixed(1);
-    trackHeap();
-    $('t-conv').textContent = secs + ' s';
-    $('t-osize').textContent = fmtMB(lastMd.length);
-    lastName = file.name.replace(/\.pdf$/i, '') + '.md';
-    $('preview').textContent = lastMd.slice(0, 3000);
-    $('result-card').style.display = '';
-    $('boot-status').innerHTML = `<span class="ok">✅ Converted in ${secs} s — output ${fmtMB(lastMd.length)}</span>`;
-    log(`SUCCESS: ${secs} s, output ${fmtMB(lastMd.length)}, peak heap ${fmtMB(peakHeap)}.`, 'ok');
-    // free Python-side memory
-    pyodide.runPython(`import gc; gc.collect()`);
-    try { pyodide.FS.unlink('/tmp/input.pdf'); } catch {}
-    trackHeap();
+        dbg(`converted ${f.name}`); dbgStats();
+      } catch (e) {
+        dbg(`FAILED ${f.name}: ${e}`);
+        failures.push(f.name);
+      }
+      try { pyodide.FS.unlink("/tmp/input"); } catch {}
+    }
+
+    $("progress-title").textContent = "Finishing up";
+    $("progress-detail").textContent = "";
+    $("progress-bar").style.width = "100%";
+    const names = JSON.parse(await pyodide.runPythonAsync(`
+_outputs = mobile.finish_batch(_outputs, mask_mode, _names)
+json.dumps(list(_outputs.keys()))
+`));
+    for (const n of names) {
+      pyodide.globals.set("_k_name", n);
+      outputs.push({ name: n, md: pyodide.runPython("_outputs[_k_name]") });
+    }
+    pyodide.runPython("import gc; gc.collect()");
+    dbg(`batch done in ${((performance.now() - t0) / 1000).toFixed(1)}s`); dbgStats();
+    showDone(failures);
   } catch (e) {
-    $('boot-status').innerHTML = `<span class="err">❌ Conversion failed</span>`;
-    log(`CONVERSION FAILED: ${e}`, 'err');
-  } finally {
-    $('run-btn').disabled = false;
+    dbg("BATCH FAILED: " + e);
+    $("progress-card").classList.add("hidden");
+    $("setup-ui").classList.remove("hidden");
+    status("Something went wrong with that conversion. Please try again — and if it keeps happening, " +
+           "send feedback with the 💬 button.", { spin: false, error: true });
   }
+};
+
+/* ── results ── */
+function showDone(failures) {
+  $("progress-card").classList.add("hidden");
+  $("done-card").classList.remove("hidden");
+  const n = outputs.length;
+  $("done-title").textContent = n === 1 ? "Your document is AI-ready" : `${n} documents are AI-ready`;
+  const list = $("done-list"); list.innerHTML = "";
+  outputs.forEach((o) => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    row.innerHTML = `<span class="file-name"></span>
+                     <button class="btn quiet small">Save</button>`;
+    row.querySelector(".file-name").textContent = o.name;
+    row.querySelector("button").onclick = () => saveBlob(new Blob([o.md], { type: "text/markdown" }), o.name);
+    list.appendChild(row);
+  });
+  failures.forEach((name) => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    row.innerHTML = `<span class="file-name" style="color:#dc2626"></span><span class="file-size">couldn't convert</span>`;
+    row.querySelector(".file-name").textContent = "⚠️ " + name;
+    list.appendChild(row);
+  });
+  $("save-all-btn").classList.toggle("hidden", n < 2);
 }
 
-function download() {
-  // anchor + download attribute: on iOS standalone this routes via the share sheet
-  const blob = new Blob([lastMd], { type: 'text/markdown' });
+function saveBlob(blob, name) {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = lastName;
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-$('run-btn').addEventListener('click', convert);
-$('dl-btn').addEventListener('click', download);
+$("save-all-btn").onclick = async () => {
+  await pyodide.runPythonAsync(`mobile.build_zip(_outputs, '/tmp/AI_Ready_Files.zip')`);
+  const bytes = pyodide.FS.readFile("/tmp/AI_Ready_Files.zip");
+  saveBlob(new Blob([bytes], { type: "application/zip" }), "AI_Ready_Files.zip");
+};
+
+$("again-btn").onclick = () => location.reload();  // fresh start also frees memory
+
+/* ── PWA: offline + update button (web app standards) ── */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+$("update-btn").onclick = async () => {
+  if (!navigator.onLine) { alert("Connect to the internet to check for updates."); return; }
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) await r.update();
+    if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+  } catch {}
+  location.href = "index.html?u=" + Date.now();
+};
+
 boot();
 </script>
 </body>
