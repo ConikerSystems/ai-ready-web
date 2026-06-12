@@ -6,7 +6,7 @@
 <title>About — AI Ready Mobile</title>
 <script src="static/js/version.js"></script>
 <style>
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light dark; --brand: #2563eb; --line: #8884; --dim: #888; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -15,42 +15,51 @@
   .about-bar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 16px; padding-top: calc(env(safe-area-inset-top) + 12px);
-    border-bottom: 1px solid #8883; position: sticky; top: 0;
-    background: Canvas;
+    border-bottom: 1px solid var(--line); position: sticky; top: 0;
+    background: Canvas; z-index: 5;
   }
   .about-bar strong { font-size: 1.05rem; }
+  .badge { font-size: .6rem; font-weight: 600; color: var(--brand); border: 1px solid var(--brand);
+           border-radius: 999px; padding: 1px 7px; vertical-align: 2px; letter-spacing: .03em; }
   .chip {
-    display: inline-block; border: 1px solid #8885; border-radius: 999px;
+    display: inline-block; border: 1px solid var(--line); border-radius: 999px;
     padding: 7px 14px; font-size: .88rem; text-decoration: none; color: inherit;
     background: none; cursor: pointer; font-family: inherit; margin-left: 6px;
   }
   main { max-width: 720px; margin: 0 auto; padding: 8px 16px; }
   .hero { text-align: center; padding: 26px 8px 8px; }
   .hero .logo { font-size: 44px; }
-  .hero h1 { margin: 8px 0 4px; font-size: 1.5rem; }
-  .tagline { color: #777; margin: 0 0 4px; }
-  section { margin: 26px 0; }
-  h2 { font-size: 1.08rem; border-bottom: 1px solid #8883; padding-bottom: 6px; }
+  .hero h1 { margin: 8px 0 4px; font-size: 1.6rem; }
+  .tagline { color: var(--dim); margin: 0 0 4px; }
+  section { margin: 28px 0; }
+  h2 { font-size: 1.08rem; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
   p, li { line-height: 1.55; font-size: .95rem; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
-  .tile { border: 1px solid #8884; border-radius: 12px; padding: 12px; }
+  .tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
   .tile .t { font-weight: 650; font-size: .92rem; margin-bottom: 4px; }
-  .tile .d { font-size: .85rem; color: #888; line-height: 1.45; }
+  .tile .d { font-size: .85rem; color: var(--dim); line-height: 1.45; }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+  th { font-size: .78rem; }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .pill { border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: .8rem; color: var(--dim); }
   ol.get-steps li { margin: 8px 0; }
   .cta { text-align: center; margin: 18px 0; }
   .cta a {
-    display: inline-block; background: #2563eb; color: #fff; text-decoration: none;
+    display: inline-block; background: var(--brand); color: #fff; text-decoration: none;
     border-radius: 10px; padding: 12px 26px; font-size: 1rem;
   }
-  .brand { text-align: center; color: #888; font-size: .82rem; margin-top: 36px;
-           border-top: 1px solid #8883; padding-top: 16px; }
+  .note { border: 1px solid #d9770655; background: #d977060f; border-radius: 10px;
+          padding: 10px 12px; font-size: .88rem; line-height: 1.5; }
+  .brand { text-align: center; color: var(--dim); font-size: .82rem; margin-top: 36px;
+           border-top: 1px solid var(--line); padding-top: 16px; }
   .brand a { color: inherit; }
 </style>
 </head>
 <body>
   <header class="about-bar">
-    <strong>📄 AI&nbsp;Ready&nbsp;Mobile</strong>
+    <strong>📄 AI&nbsp;Ready <span class="badge">MOBILE</span></strong>
     <div>
       <a class="chip" href="index.html">← Back</a>
       <button class="chip" id="share-btn">📤 Share</button>
@@ -60,62 +69,127 @@
   <main>
     <div class="hero">
       <div class="logo">📄→🤖</div>
-      <h1>AI Ready Mobile</h1>
-      <p class="tagline">Make your documents AI-ready — right on your iPhone or iPad.</p>
+      <h1>AI Ready <span class="badge">MOBILE</span></h1>
+      <p class="tagline">Documents your AI can trust — right on your iPhone or iPad.</p>
     </div>
 
     <section>
-      <h2>What It Does</h2>
-      <p>AI Ready Mobile converts your documents (PDFs and more) into clean, structured
-         <b>Markdown that AI assistants like Claude and ChatGPT can actually read</b> —
-         with page anchors you can cite, document indexes, and verbatim text. Convert a
-         file, save the result, and drop it into your AI chat or knowledge library.</p>
+      <h2>What AI Ready Does</h2>
+      <p>When you upload a raw PDF or Word document to an AI assistant — Claude, ChatGPT, or
+         others — the results can be imprecise: wrong page references, missed tables, misread
+         numbers. AI Ready fixes that.</p>
+      <p>It converts your documents into a structured, auditable format with unique page
+         anchors, integrity fingerprints, and embedded AI reading instructions. Upload the
+         output to any AI assistant and get precise, source-cited answers you can verify.</p>
+      <p><b>The Mobile version does all of this in your browser</b> — your documents are never
+         uploaded to any server, because there is no server.</p>
     </section>
 
     <section>
-      <h2>Private by Design</h2>
-      <p>Everything happens <b>on your device, in your browser</b>. Your documents are
-         <b>never uploaded to any server</b> — there is no server. No account, no
-         sign-in, no ads. That makes it safe for sensitive material like legal,
-         financial, and medical documents.</p>
-    </section>
-
-    <section>
-      <h2>What's Inside</h2>
+      <h2>Who Uses AI Ready</h2>
       <div class="grid">
-        <div class="tile"><div class="t">📑 Page-anchored Markdown</div>
-          <div class="d">Every page gets an anchor so an AI can cite exactly where something came from.</div></div>
-        <div class="tile"><div class="t">🔍 Document indexes</div>
-          <div class="d">Parties, dates, amounts, and references mapped to their pages automatically.</div></div>
-        <div class="tile"><div class="t">🔒 On-device processing</div>
-          <div class="d">Files never leave your phone or tablet. Airplane-mode private.</div></div>
-        <div class="tile"><div class="t">⚡ Real conversion engine</div>
-          <div class="d">The same pipeline as the AI Ready desktop app, running in your browser.</div></div>
+        <div class="tile"><div class="t">📋 Financial Professionals</div>
+          <div class="d">CPAs, financial advisors, and bookkeepers who need AI to read tax returns, brokerage statements, and financial reports accurately — and cite exactly where each number came from.</div></div>
+        <div class="tile"><div class="t">⚖️ Legal &amp; Compliance</div>
+          <div class="d">Attorneys and compliance professionals working with contracts, briefs, and regulatory documents. AI Ready preserves document structure so AI can find the right clause, not just the right keyword.</div></div>
+        <div class="tile"><div class="t">🏢 Business Owners</div>
+          <div class="d">Entrepreneurs and executives managing stacks of contracts, leases, insurance policies, and financial statements. Ask AI questions across all your documents at once.</div></div>
+        <div class="tile"><div class="t">🏠 Real Estate Professionals</div>
+          <div class="d">Agents and investors working with purchase agreements, inspection reports, and closing documents. AI Ready makes multi-document review fast and reliable.</div></div>
+        <div class="tile"><div class="t">🏥 Healthcare &amp; Insurance</div>
+          <div class="d">Professionals navigating medical records, EOBs, and insurance policies. Sensitive data is masked automatically — you control what AI sees.</div></div>
+        <div class="tile"><div class="t">🔍 AI Power Users</div>
+          <div class="d">Anyone who uses AI daily and has hit the ceiling on what a raw PDF upload can do. AI Ready is for people who need more than a summary — they need answers they can trust.</div></div>
       </div>
     </section>
 
     <section>
-      <h2>What's Included — Mobile vs. Desktop</h2>
-      <p>AI Ready Mobile is built for everyday, phone-sized jobs. The
-         <b>AI Ready desktop app</b> (Mac &amp; Windows) handles the heavy lifting.</p>
+      <h2>Supported Formats</h2>
+      <div class="pill-row"><span class="pill">PDF</span><span class="pill">Word (DOCX)</span>
+        <span class="pill">PowerPoint (PPTX)</span><span class="pill">Text / Markdown</span>
+        <span class="pill">Pasted call transcripts</span></div>
+      <p>The document types below are traditionally the hardest for AI to read accurately —
+         dense tables, multi-page layouts, specialized terminology. AI Ready applies specific
+         logic to each type to extract content cleanly with full audit integrity.</p>
+      <div class="pill-row">
+        <span class="pill">Tax (IRS, State &amp; Government)</span><span class="pill">Financial Statements</span>
+        <span class="pill">Medical Records &amp; Lab Reports</span><span class="pill">Legal Documents &amp; Contracts</span>
+        <span class="pill">Insurance Policies &amp; EOBs</span><span class="pill">Real Estate Documents</span>
+        <span class="pill">Brokerage Statements</span><span class="pill">Corporate Filings</span>
+        <span class="pill">Presentations &amp; Letters</span><span class="pill">…and any other document</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Output Formats</h2>
+      <p><b>Markdown (Gold Master)</b> — the AI-ready format described below. The default.</p>
+      <p><b>DOCX (Word)</b> — exact PDF text → Word: one page per PDF page, with page numbers,
+         plus a fidelity audit report proving the text carried over 1:1. Useful for
+         proofreading or sharing a faithful text copy.</p>
+    </section>
+
+    <section>
+      <h2>What About Scanned Documents? (OCR)</h2>
+      <p>Some PDFs aren't really text — they're <b>pictures of text</b>: scanned paper,
+         faxes, photographed pages. Reading those requires
+         <b>OCR (Optical Character Recognition)</b> — technology that looks at the image and
+         recognizes each printed character.</p>
+      <p><b>The Mobile version does not include OCR</b> — it's heavy processing that needs the
+         <b>AI Ready desktop app</b> (Mac &amp; Windows). What Mobile does instead:
+         it <b>detects</b> scanned pages and tells you exactly which files — and how many
+         pages — need the desktop app, so nothing is silently missed.</p>
+      <div class="note">⚠️ If you convert a file and see a notice like “14 of 30 pages are
+         scanned images,” those pages need the desktop app's OCR. The readable pages are
+         still captured.</div>
+    </section>
+
+    <section>
+      <h2>Privacy — Masking</h2>
+      <p>Sensitive data is masked before anything is written to the output file. Your original
+         is never stored — and on Mobile, never leaves the device.</p>
+      <table>
+        <tr><th>Mode</th><th>SSN</th><th>Bank Account</th><th>Name</th></tr>
+        <tr><td><b>Full Mask</b></td><td>XXX-XX-XXXX</td><td>XXXX-XXXX-XXXX</td><td>[NAME MASKED]</td></tr>
+        <tr><td><b>Soft Mask</b></td><td>XXX-XX-1234</td><td>XXXX-1234</td><td>First L.</td></tr>
+        <tr><td><b>No Mask</b></td><td>unchanged</td><td>unchanged</td><td>unchanged</td></tr>
+      </table>
+      <p style="font-size:.85rem;color:var(--dim)">Never masked: dollar amounts, transaction
+         dates, business names, tax form references, professional titles.</p>
+    </section>
+
+    <section>
+      <h2>Replacements</h2>
+      <p>Define your own find-and-replace rules, applied automatically to every document and
+         call transcript you process — in addition to the built-in masking. Find any word or
+         phrase and replace it with text you choose; leave the replacement blank to remove it
+         entirely. <i>Examples: “General Motors” → “GM” · “Dr. Johnson” → “Provider”.</i></p>
+      <p>Turn on the <b>Replacements</b> switch on the main screen to add your rules — they're
+         saved on your device and apply to all future conversions.</p>
+    </section>
+
+    <section>
+      <h2>The Gold Master Format</h2>
+      <p>Every document produces a <b>Gold Master</b> file — a complete, structured
+         representation of your original, in three sections:</p>
       <div class="grid">
-        <div class="tile">
-          <div class="t">✅ Mobile handles</div>
-          <div class="d">• PDF, Word, PowerPoint &amp; text documents<br>
-            • Call Transcripts (paste the text)<br>
-            • Privacy masking (Full / Soft / None)<br>
-            • Your own find &amp; replace rules<br>
-            • Up to 20 files, 25 MB each, per batch<br>
-            • Works offline once installed</div>
-        </div>
-        <div class="tile">
-          <div class="t">🖥️ Desktop app needed for</div>
-          <div class="d">• Scanned documents (OCR)<br>
-            • Audio &amp; Voice Memos transcription<br>
-            • Spreadsheets (Excel / CSV)<br>
-            • Whole folders at once<br>
-            • Very large files &amp; legal productions</div>
-        </div>
+        <div class="tile"><div class="t">1 · Document Metadata</div>
+          <div class="d">Source file name, document type, page count, processing date, and a SHA-256 fingerprint. If the source ever changes, the fingerprint changes — permanently tying this output to a specific version of the original.</div></div>
+        <div class="tile"><div class="t">2 · Audit Rules</div>
+          <div class="d">Instructions embedded in the file telling any AI assistant how to read it — what's authoritative, how to cite sources. You don't need to explain anything to your AI.</div></div>
+        <div class="tile"><div class="t">3 · Source Extraction</div>
+          <div class="d">The full text, page by page, each page with a unique anchor naming its document. When AI references something, it cites the exact page — not just the document.</div></div>
+        <div class="tile"><div class="t">📦 Combined Files</div>
+          <div class="d">Convert multiple files and you also get one unified file with a Source Registry — every input listed with its fingerprint and page count. Ask a question spanning ten documents; the AI knows which file each answer came from.</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Document Integrity</h2>
+      <div class="grid">
+        <div class="tile"><div class="t">🔏 Tamper detection</div>
+          <div class="d">If the source document is modified after processing, the SHA-256 fingerprint no longer matches. You know exactly what version was processed.</div></div>
+        <div class="tile"><div class="t">🧾 Audit trail</div>
+          <div class="d">The combined file's registry lists every input with its fingerprint and page count — a complete chain of custody in one place.</div></div>
       </div>
     </section>
 
@@ -126,11 +200,39 @@
         <li>Open this site in <b>Safari</b> (you're likely here already).</li>
         <li>Tap the <b>Share</b> button — the square with an arrow.</li>
         <li>Choose <b>“Add to Home Screen,”</b> then tap <b>Add</b>.</li>
-        <li>Open it from your home screen like any app.</li>
+        <li>Open it from your home screen like any app — it works offline.</li>
       </ol>
       <div class="cta"><a href="index.html">▶ Try It Now</a></div>
-      <p>Want to send it to someone? Tap <b>📤 Share</b> at the top of this page to text
-         or email them this page — it explains everything and how to get it.</p>
+      <p>Want to send it to someone? Tap <b>📤 Share</b> at the top of this page to text or
+         email them this page — it explains everything and how to get it.</p>
+    </section>
+
+    <section>
+      <h2>Mobile vs. Desktop</h2>
+      <p>AI Ready is one program with two deliveries. Mobile handles everyday jobs on your
+         phone; the <b>AI Ready desktop app</b> (Mac &amp; Windows) handles the heavy lifting.</p>
+      <div class="grid">
+        <div class="tile">
+          <div class="t">✅ Mobile handles</div>
+          <div class="d">• PDF, Word, PowerPoint &amp; text documents<br>
+            • Word (DOCX) export of exact PDF text<br>
+            • Call Transcripts (paste the text)<br>
+            • Privacy masking (Full / Soft / None)<br>
+            • Your own find &amp; replace rules<br>
+            • Combined files with source registry<br>
+            • Up to 20 files, 25 MB each, per batch<br>
+            • Works offline once installed</div>
+        </div>
+        <div class="tile">
+          <div class="t">🖥️ Desktop app needed for</div>
+          <div class="d">• Scanned documents — OCR text recognition<br>
+            • Audio &amp; call-recording transcription<br>
+            • Spreadsheets (Excel / CSV)<br>
+            • Whole folders at once<br>
+            • Very large files &amp; legal productions<br>
+            • Large / Custom Project condensing</div>
+        </div>
+      </div>
     </section>
 
     <div class="brand">
@@ -142,13 +244,13 @@
   </main>
 
   <script>
-    document.getElementById("app-ver").textContent = window.APP_VERSION || "0.1";
+    document.getElementById("app-ver").textContent = window.APP_VERSION || "1.0";
     document.getElementById("cr-years").textContent = new Date().getFullYear();
 
     // Share THIS About page — the link is passed separately in the share sheet's
     // `url` field so it isn't duplicated. (iOS appends `url` after `text`.)
     var ABOUT_URL = location.origin + location.pathname;
-    var SHARE_TEXT = "AI Ready Mobile — turn your documents into AI-ready files, "
+    var SHARE_TEXT = "AI Ready — turn your documents into AI-ready files, "
       + "right on your phone. Private: nothing gets uploaded. Here's all about it, free:";
 
     document.getElementById("share-btn").onclick = async function () {

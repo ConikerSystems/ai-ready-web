@@ -99,7 +99,7 @@
 <body>
 
 <header>
-  <h1>📄 AI Ready</h1>
+  <h1>📄 AI Ready <span style="font-size:.62rem;font-weight:600;color:var(--brand);border:1px solid var(--brand);border-radius:999px;padding:2px 8px;vertical-align:3px;letter-spacing:.03em">MOBILE</span></h1>
   <a class="chip" href="about.html">ℹ️ About</a>
 </header>
 <div class="tagline">Make your documents AI-ready — everything stays on this device.</div>
@@ -112,15 +112,6 @@
 </div>
 
 <div id="setup-ui">
-  <div class="card" id="files-card">
-    <h2>Files</h2>
-    <input type="file" id="file-input" class="hidden" multiple
-           accept=".pdf,.docx,.pptx,.txt,.md,application/pdf">
-    <div id="file-list"></div>
-    <button class="btn quiet" id="choose-btn" disabled>＋ Choose Files</button>
-    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 20 files, 25 MB each.</div>
-  </div>
-
   <div class="card" id="ts-card-toggle">
     <div class="switch-row" style="margin-top:0">
       <div>
@@ -135,6 +126,24 @@
       <div class="hint" style="margin-top:8px">Transcripts are kept word-for-word — only Social Security and payment-card
         numbers are hidden automatically, plus anything in your Replacements.</div>
     </div>
+  </div>
+
+  <div class="card" id="files-card">
+    <h2>Files</h2>
+    <input type="file" id="file-input" class="hidden" multiple
+           accept=".pdf,.docx,.pptx,.txt,.md,application/pdf">
+    <div id="file-list"></div>
+    <button class="btn quiet" id="choose-btn" disabled>＋ Choose Files</button>
+    <div class="hint" style="margin-top:8px">PDF, Word, PowerPoint, or text · up to 20 files, 25 MB each.</div>
+  </div>
+
+  <div class="card" id="format-card">
+    <h2>Output Format</h2>
+    <div class="seg" id="format-seg">
+      <button data-format="markdown" class="on">Markdown</button>
+      <button data-format="docx">DOCX</button>
+    </div>
+    <div class="hint" id="format-hint" style="margin-top:8px">AI-ready Gold Master Markdown.</div>
   </div>
 
   <div class="card">
@@ -171,6 +180,7 @@
 <div class="card hidden" id="done-card">
   <div class="done-head"><span class="ok-badge">✅</span><span id="done-title">Done</span></div>
   <div class="hint" id="done-sub" style="margin-bottom:6px">Save your AI-ready files, then add them to your AI chat or library.</div>
+  <div id="done-notices"></div>
   <div id="done-list"></div>
   <button class="btn" id="save-all-btn" style="margin-top:14px">Save All</button>
   <button class="btn quiet" id="again-btn" style="margin-top:8px">Convert More Files</button>
@@ -239,7 +249,7 @@ function statusHide() { $("status-card").classList.add("hidden"); }
 const PY_DIRS = { "converters": ["__init__.py","pdf_converter.py","content_detector.py","medical_index.py",
                                  "bates.py","legal_index.py","integrity.py","grid_forms.py",
                                  "docx_converter.py","pptx_converter.py","text_converter.py",
-                                 "transcript_converter.py"],
+                                 "transcript_converter.py","pdf_to_docx.py"],
                   "masking": ["__init__.py","masker.py"] };
 
 async function boot() {
@@ -320,6 +330,7 @@ function renderTsMode() {
   $("ts-toggle").checked = tsOn;
   $("ts-editor").classList.toggle("hidden", !tsOn);
   $("files-card").classList.toggle("hidden", tsOn);
+  $("format-card").classList.toggle("hidden", tsOn);
   // transcripts keep verbatim text (hard-PII auto-masked) — the mask selector
   // doesn't apply; Replacements still do.
   $("mask-seg").classList.toggle("hidden", tsOn);
@@ -372,6 +383,23 @@ function refreshRunBtn() {
 /* ── output size: fixed at Large (3 MB) on mobile — desktop default; the
       Small/Large choice is a desktop Admin Function ── */
 const partTarget = 3145728;
+
+/* ── output format (desktop parity): Markdown (Gold Master) or DOCX ── */
+// Shared wording with the desktop app.
+const FORMAT_HINTS = {
+  markdown: "AI-ready Gold Master Markdown.",
+  docx: "Exact PDF text → Word: one page per PDF page, page numbers. Scanned pages need the desktop app (OCR).",
+};
+let outputFormat = localStorage.getItem("aiready.format") || "markdown";
+function renderFormat() {
+  document.querySelectorAll("#format-seg button").forEach(b =>
+    b.classList.toggle("on", b.dataset.format === outputFormat));
+  $("format-hint").textContent = FORMAT_HINTS[outputFormat];
+}
+document.querySelectorAll("#format-seg button").forEach(b =>
+  b.onclick = () => { outputFormat = b.dataset.format;
+    localStorage.setItem("aiready.format", outputFormat); renderFormat(); });
+renderFormat();
 
 /* ── masking controls ── */
 // Shared wording with the AI Ready desktop app — keep the two apps saying the same thing.
@@ -458,6 +486,7 @@ import json, mobile
 json.dumps(mobile.process_transcripts(json.loads(ts_blocks_json), json.loads(variables_json), run_day))
 `));
       outputs = [{ name: r.name, size: r.size, kind: "transcript" }];
+      window._notices = [];
       $("progress-bar").style.width = "100%";
       dbg(`transcript done (${r.calls} call(s))`); dbgStats();
       showDone();
@@ -517,15 +546,19 @@ json.dumps(mobile.process_transcripts(json.loads(ts_blocks_json), json.loads(var
     pyodide.globals.set("run_day", stamps.day);
     pyodide.globals.set("app_version", (window.APP_VERSION || "1.0") + "-mobile");
 
+    pyodide.globals.set("output_format", outputFormat);
     const outJson = await pyodide.runPythonAsync(`
 import json, mobile
-_outs = mobile.run_batch('/inputs', json.loads(filenames_json), mask_mode,
-                         json.loads(variables_json), int(part_target),
-                         run_ts, run_gen, run_day, app_version,
-                         file_start_cb=js_file_start, progress_cb=js_progress)
-json.dumps(_outs)
+_r = mobile.run_batch('/inputs', json.loads(filenames_json), mask_mode,
+                      json.loads(variables_json), int(part_target),
+                      run_ts, run_gen, run_day, app_version,
+                      file_start_cb=js_file_start, progress_cb=js_progress,
+                      output_format=output_format)
+json.dumps(_r)
 `);
-    outputs = JSON.parse(outJson);
+    const result = JSON.parse(outJson);
+    outputs = result.outputs;
+    window._notices = result.notices || [];
     for (const old of pyodide.FS.readdir("/inputs")) {
       if (old !== "." && old !== "..") { try { pyodide.FS.unlink("/inputs/" + old); } catch {} }
     }
@@ -543,7 +576,9 @@ json.dumps(_outs)
 };
 
 /* ── results ── */
-const KIND_LABEL = { combined: "Combined", "large-part": "Part", file: "", transcript: "Transcript" };
+const KIND_LABEL = { combined: "Combined", "large-part": "Part", file: "", transcript: "Transcript",
+                     docx: "Word", audit: "Audit" };
+const MIME = { docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
 function showDone() {
   $("progress-card").classList.add("hidden");
   $("done-card").classList.remove("hidden");
@@ -553,6 +588,21 @@ function showDone() {
   $("done-sub").textContent = nSources > 1
     ? "The Combined file holds everything in one place — or save the individual files below it."
     : "Save your AI-ready file, then add it to your AI chat or library.";
+
+  // What mobile could NOT read — scanned pages need the desktop app's OCR.
+  const nt = $("done-notices"); nt.innerHTML = "";
+  (window._notices || []).forEach((n) => {
+    const div = document.createElement("div");
+    div.className = "hint";
+    div.style.cssText = "border:1px solid #d9770655;background:#d977060f;border-radius:10px;padding:10px;margin:8px 0;color:inherit";
+    const what = n.pages_unreadable
+      ? `${n.pages_unreadable} of ${n.pages_total} pages are scanned images`
+      : `${n.scanned_pct}% of its pages are scanned images`;
+    div.textContent = `⚠️ ${n.filename}: ${what} — pictures of text that need OCR (text recognition) to read. `
+      + `The mobile version can't do that part; run this file through the AI Ready desktop app to capture those pages.`;
+    nt.appendChild(div);
+  });
+
   const list = $("done-list"); list.innerHTML = "";
   outputs.forEach((o) => {
     const row = document.createElement("div");
@@ -563,7 +613,8 @@ function showDone() {
     row.querySelector(".file-name").textContent = (o.kind === "combined" ? "📦 " : "") + o.name;
     row.querySelector("button").onclick = () => {
       const bytes = pyodide.FS.readFile("/outputs/" + o.name);
-      saveBlob(new Blob([bytes], { type: "text/markdown" }), o.name);
+      const ext = o.name.split(".").pop().toLowerCase();
+      saveBlob(new Blob([bytes], { type: MIME[ext] || "text/markdown" }), o.name);
     };
     list.appendChild(row);
   });

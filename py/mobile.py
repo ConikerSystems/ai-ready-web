@@ -41,9 +41,14 @@ def _converter_for(ext: str):
 
 def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
               part_target: int, timestamp: str, gen_time: str, process_date: str,
-              app_version: str, file_start_cb=None, progress_cb=None) -> list:
+              app_version: str, file_start_cb=None, progress_cb=None,
+              output_format: str = "markdown") -> dict:
     """Process a flat batch exactly like the desktop worker. Writes all outputs
-    into OUTPUTS_DIR and returns [{name, size, kind}] (combined parts first).
+    into OUTPUTS_DIR and returns {"outputs": [{name, size, kind}],
+    "notices": [{filename, scanned_pct, pages_unreadable}]} (combined parts
+    first). `output_format` mirrors desktop: "docx" exports each PDF as exact
+    Word text instead of Gold Master markdown (non-PDFs still get markdown).
+    Notices flag scanned/image pages that need the desktop app's OCR.
     `file_start_cb(i, n, filename)` fires as each source file begins."""
     assembly.VERSION = app_version
     out_dir = assembly.OUTPUTS_DIR
@@ -56,6 +61,7 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
 
     pt = part_target or assembly._PART_TARGET
     registry, sections, large_files, results = [], [], [], []
+    notices, docx_outputs = [], []
     batch_names: set = set()
 
     for idx, filename in enumerate(filenames):
@@ -66,6 +72,45 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
         if ext not in SUPPORTED:
             continue
         path = os.path.join(input_dir, filename)
+
+        # DOCX export (desktop parity): PDFs become exact Word text — one page
+        # per PDF page, page numbers, masking + replacements applied per page.
+        # Scanned pages can't be read here (OCR is desktop-only) — they are
+        # counted and reported so the user knows what mobile could not do.
+        if output_format == "docx" and ext == ".pdf":
+            from converters import pdf_to_docx
+            if mask_mode == "none" and not variables:
+                page_mask_fn = None
+            else:
+                def page_mask_fn(t, _mode=mask_mode, _vars=variables):
+                    if _mode in ("full", "soft"):
+                        t, _ = mask_text(t, _mode)
+                    if _vars:
+                        t, _n, _s = assembly._apply_custom_variables(t, _vars)
+                    return t
+            stem = os.path.splitext(os.path.basename(filename))[0]
+            docx_name = stem + ".docx"
+            out_dir_path = os.path.join(out_dir, docx_name)
+            dmeta = pdf_to_docx.build_pdf_docx(path, out_dir_path,
+                                               mask_fn=page_mask_fn,
+                                               progress_cb=progress_cb)
+            audit_name = stem + "_docx_audit.md"
+            pdf_to_docx.write_audit_report(dmeta, filename, docx_name,
+                                           os.path.join(out_dir, audit_name),
+                                           faithful=page_mask_fn is None)
+            docx_outputs.append({"name": docx_name,
+                                 "size": os.path.getsize(out_dir_path), "kind": "docx"})
+            docx_outputs.append({"name": audit_name,
+                                 "size": os.path.getsize(os.path.join(out_dir, audit_name)),
+                                 "kind": "audit"})
+            unreadable = sum(1 for p in dmeta.get("page_audit", [])
+                             if not p.get("pdf_words") and not p.get("docx_words"))
+            if unreadable:
+                notices.append({"filename": filename, "scanned_pct": 0,
+                                "pages_unreadable": unreadable,
+                                "pages_total": dmeta.get("pages", "?")})
+            continue
+
         sha = assembly._compute_sha256(path)
         slug = assembly._make_slug(filename, source_idx)
         conv = _converter_for(ext)
@@ -74,6 +119,16 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
                                           progress_cb=progress_cb)
         else:
             section3, meta = conv.convert(path, filename, process_date, slug)
+
+        # Surface what mobile could NOT read: scanned/image-only pages need the
+        # desktop app's OCR. The pipeline already detects them — tell the user.
+        scanned_pct = int(meta.get("scanned_ratio", 0) * 100)
+        unreadable = (section3.count("image-only or scanned page")
+                      + section3.count("No extractable text after filtering"))
+        if scanned_pct >= 5 or unreadable:
+            notices.append({"filename": filename, "scanned_pct": scanned_pct,
+                            "pages_unreadable": unreadable,
+                            "pages_total": meta.get("page_count", "?")})
 
         # Desktop-parity (v1.3.26): assembled WITHOUT the global preamble —
         # markers let the per-file output re-insert the full rules/notice while
@@ -166,10 +221,11 @@ def run_batch(input_dir: str, filenames: list, mask_mode: str, variables: list,
         fp = os.path.join(out_dir, out_name)
         outputs.append({"name": out_name, "size": os.path.getsize(fp), "kind": "file"})
 
-    # Combined first, then large parts, then per-file outputs.
-    order = {"combined": 0, "large-part": 1, "file": 2}
+    outputs.extend(docx_outputs)
+    # Combined first, then large parts, then per-file outputs, then docx+audits.
+    order = {"combined": 0, "large-part": 1, "file": 2, "docx": 3, "audit": 4}
     outputs.sort(key=lambda o: order.get(o["kind"], 9))
-    return outputs
+    return {"outputs": outputs, "notices": notices}
 
 
 def process_transcripts(blocks: list, variables: list, process_date: str) -> dict:

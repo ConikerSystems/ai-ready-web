@@ -1,6 +1,6 @@
 /* AI Ready Mobile service worker — network-first with cache fallback.
  * Bump CACHE on every deploy (kept in lockstep with static/js/version.js). */
-const CACHE = "ai-ready-mobile-v1.2.1";
+const CACHE = "ai-ready-mobile-v1.3.0";
 
 const SHELL = [
   "index.html",
@@ -27,6 +27,7 @@ const SHELL = [
   "py/converters/pptx_converter.py",
   "py/converters/text_converter.py",
   "py/converters/transcript_converter.py",
+  "py/converters/pdf_to_docx.py",
 ];
 
 self.addEventListener("install", (e) => {
