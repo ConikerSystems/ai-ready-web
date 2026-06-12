@@ -159,15 +159,6 @@
     </div>
   </div>
 
-  <div class="card">
-    <h2>Output Size — pick one</h2>
-    <div class="seg" id="size-seg">
-      <button data-size="524288">Small · for a chat</button>
-      <button data-size="3145728">Large · for a library</button>
-    </div>
-    <div class="hint" id="size-hint" style="margin-top:8px">Small files fit a single AI chat; Large files suit a knowledge library. Required — pick one each run.</div>
-  </div>
-
   <button class="btn" id="run-btn" disabled>Make AI-Ready</button>
 </div>
 
@@ -330,8 +321,7 @@ function renderTsMode() {
   $("ts-editor").classList.toggle("hidden", !tsOn);
   $("files-card").classList.toggle("hidden", tsOn);
   // transcripts keep verbatim text (hard-PII auto-masked) — the mask selector
-  // and output-size pick don't apply; Replacements still do.
-  document.querySelectorAll("#size-seg")[0].closest(".card").classList.toggle("hidden", tsOn);
+  // doesn't apply; Replacements still do.
   $("mask-seg").classList.toggle("hidden", tsOn);
   $("mask-hint").textContent = tsOn
     ? "Transcripts stay word-for-word — only SSNs and payment-card numbers are hidden automatically."
@@ -376,20 +366,12 @@ function renderFiles() {
 function refreshRunBtn() {
   $("run-btn").disabled = tsOn
     ? !(pyodide && tsBlocks.some(b => b.trim()))
-    : !(pyodide && files.length && partTarget);
+    : !(pyodide && files.length);
 }
 
-/* ── output size (required, no default — desktop parity) ── */
-let partTarget = 0;
-document.querySelectorAll("#size-seg button").forEach(b =>
-  b.onclick = () => {
-    partTarget = parseInt(b.dataset.size, 10);
-    document.querySelectorAll("#size-seg button").forEach(x => x.classList.toggle("on", x === b));
-    $("size-hint").textContent = partTarget === 524288
-      ? "Small (0.5 MB parts) — each output fits comfortably in a single AI chat."
-      : "Large (3 MB parts) — fewer, bigger files for a knowledge library.";
-    refreshRunBtn();
-  });
+/* ── output size: fixed at Large (3 MB) on mobile — desktop default; the
+      Small/Large choice is a desktop Admin Function ── */
+const partTarget = 3145728;
 
 /* ── masking controls ── */
 // Shared wording with the AI Ready desktop app — keep the two apps saying the same thing.
