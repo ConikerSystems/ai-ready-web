@@ -63,4 +63,19 @@ def convert(file_path: str, filename: str, process_date: str, file_slug: str = "
         "ocr_available": False,
         "integrity": integrity.check_numbers(text, section3),
     }
+
+    # Document Index — the universal audit fingerprint (parties, dates, amounts,
+    # defined terms, numbered references, section headings, case numbers → page
+    # anchor). It operates on the extracted text, so a .txt/.md gets the same
+    # index a PDF does. (Bates and tax/medical grid indexes are PDF-structure
+    # only and don't apply here.) Mirrors pdf_converter's call; self-withholds on
+    # empty/low-signal text via legal_index_reliable.
+    from converters import legal_index
+    try:
+        legal_index.build_legal_index(section3, meta, file_slug)
+    except Exception:
+        meta.setdefault("legal_index", [])
+        meta["legal_index_reliable"] = False
+        meta.setdefault("legal_index_unreliable_reason", "Document index build failed.")
+
     return section3, meta
