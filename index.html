@@ -141,7 +141,7 @@
     <h2>Output Format</h2>
     <div class="seg" id="format-seg">
       <button data-format="markdown" class="on">Markdown</button>
-      <button data-format="docx">DOCX</button>
+      <button data-format="docx">Document</button>
     </div>
     <div class="hint" id="format-hint" style="margin-top:8px">AI-ready Gold Master Markdown.</div>
   </div>
@@ -341,7 +341,7 @@ function renderTsMode() {
   $("mask-hint").textContent = tsOn
     ? "Transcripts stay word-for-word — only SSNs and payment-card numbers are hidden automatically."
     : MASK_HINTS[maskMode];
-  $("run-btn").textContent = tsOn ? "Make Transcript AI-Ready" : "Make AI-Ready";
+  $("run-btn").textContent = runBtnLabel();
   if (tsOn) renderTsBlocks();
   refreshRunBtn();
 }
@@ -392,13 +392,18 @@ const partTarget = 3145728;
 // Shared wording with the desktop app.
 const FORMAT_HINTS = {
   markdown: "AI-ready Gold Master Markdown.",
-  docx: "Exact PDF text → Word: one page per PDF page, page numbers. Scanned pages need the desktop app (OCR).",
+  docx: "Convert your PDF to a Word document — exact text, one page per PDF page, page numbers. Plain text into a doc: no AI indexing or chunking. Scanned pages need the desktop app (OCR).",
 };
 let outputFormat = localStorage.getItem("aiready.format") || "markdown";
+function runBtnLabel() {
+  if (tsOn) return "Make Transcript AI-Ready";
+  return outputFormat === "docx" ? "Convert to Document" : "Make AI-Ready";
+}
 function renderFormat() {
   document.querySelectorAll("#format-seg button").forEach(b =>
     b.classList.toggle("on", b.dataset.format === outputFormat));
   $("format-hint").textContent = FORMAT_HINTS[outputFormat];
+  $("run-btn").textContent = runBtnLabel();
 }
 document.querySelectorAll("#format-seg button").forEach(b =>
   b.onclick = () => { outputFormat = b.dataset.format;
@@ -630,6 +635,19 @@ function showDone() {
     list.appendChild(row);
   });
   $("save-all-btn").classList.toggle("hidden", outputs.length < 2);
+
+  // Conversion is done and its outputs are now in /outputs (the Save buttons read
+  // from there, not from `files`). Clear the staged inputs and the in-memory source
+  // list NOW so a later pick can never merge with — or be confused by — this run's
+  // files. Fixes the bug where a follow-up conversion pulled up prior PDFs.
+  files = [];
+  tsBlocks = [""];
+  const fi = $("file-input"); if (fi) fi.value = "";
+  try {
+    for (const old of pyodide.FS.readdir("/inputs")) {
+      if (old !== "." && old !== "..") { try { pyodide.FS.unlink("/inputs/" + old); } catch {} }
+    }
+  } catch {}
 }
 
 function saveBlob(blob, name) {
